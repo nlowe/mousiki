@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/spf13/viper"
+
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/nlowe/mousiki/pandora"
 	"github.com/sirupsen/logrus"
@@ -26,6 +28,7 @@ var pandoraAPIBase = fmt.Sprintf("%s/api", pandoraBase)
 type Client interface {
 	Login(username, password string) error
 	GetStations() ([]pandora.Station, error)
+	GetMoreTracks(stationId string) ([]pandora.Track, error)
 }
 
 type client struct {
@@ -146,13 +149,55 @@ func (c *client) GetStations() ([]pandora.Station, error) {
 		return nil, fmt.Errorf("GetStations: %w", err)
 	}
 
+	defer mustClose(resp.Body)
+	if err := checkHttpCode(resp); err != nil {
+		return nil, fmt.Errorf("GetStations: %w", err)
+	}
+
 	payload := StationResponse{}
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return nil, fmt.Errorf("login: read response: %w", err)
+		return nil, fmt.Errorf("GetStations: read response: %w", err)
 	}
 
 	// TODO: Paging
 	return payload.Stations, nil
+}
+
+func (c *client) GetMoreTracks(stationId string) ([]pandora.Track, error) {
+	f := pandora.AudioFormat(viper.GetString("audio-format"))
+	c.log.WithFields(logrus.Fields{
+		"station":     stationId,
+		"audioFormat": f,
+	}).Debug("Fetching more tracks")
+
+	// TODO: What audio formats can we request?
+	// TODO: It doesn't seem to matter what format we request, pandora always gives us aacplus
+	// TODO: Does StartingAtTrackId need to be set when continuing to play a station?
+	resp, err := c.post("/v1/playlist/getFragment", &GetPlaylistFragmentRequest{
+		StationID:      stationId,
+		IsStationStart: true,
+		AudioFormat:    f,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("GetMoreTracks: %w", err)
+	}
+
+	defer mustClose(resp.Body)
+	if err := checkHttpCode(resp); err != nil {
+		return nil, fmt.Errorf("GetMoreTracks: %w", err)
+	}
+
+	payload := GetPlaylistFragmentResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, fmt.Errorf("GetMoreTracks: read response: %w", err)
+	}
+
+	if payload.IsBingeSkipping {
+		c.log.Warn("Pandora thinks you're skipping tracks too frequently")
+	}
+
+	return payload.Tracks, nil
 }
 
 func checkHttpCode(r *http.Response) error {

@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nlowe/mousiki/pandora"
+
 	"github.com/mattn/go-colorable"
 	"github.com/nlowe/mousiki/pandora/api"
 	"github.com/sirupsen/logrus"
@@ -45,8 +47,38 @@ var rootCmd = &cobra.Command{
 			return err
 		}
 
+		var stationToPlay string
 		for _, station := range stations {
+			stationToPlay = station.ID
 			logrus.WithField("station", station).Info("Discovered Station")
+		}
+
+		logrus.WithField("station", stationToPlay).Info("Attempting to play from station")
+		tracks, err := p.GetMoreTracks(stationToPlay)
+		if err != nil {
+			return err
+		}
+
+		for _, track := range tracks {
+			logrus.WithFields(logrus.Fields{
+				"track":       track,
+				"audioFormat": track.AudioEncoding,
+				"playbackURL": track.AudioUrl,
+			}).Info("Got Track")
+		}
+
+		logrus.WithField("station", stationToPlay).Info("Attempting to get even more tracks")
+		tracks, err = p.GetMoreTracks(stationToPlay)
+		if err != nil {
+			return err
+		}
+
+		for _, track := range tracks {
+			logrus.WithFields(logrus.Fields{
+				"track":       track,
+				"audioFormat": track.AudioEncoding,
+				"playbackURL": track.AudioUrl,
+			}).Info("Got Track")
 		}
 
 		return nil
@@ -84,6 +116,8 @@ func init() {
 	flags.StringP("username", "u", "", "Pandora Username")
 	MarkFlagRequired(rootCmd, "username")
 	flags.StringP("password", "p", "", "Pandora Password")
+
+	flags.StringP("audio-format", "a", string(pandora.AudioFormatAACPlus), "Audio Format to use [aacplus, mp3]")
 
 	flags.StringP("verbosity", "v", "info", "Verbosity []")
 
