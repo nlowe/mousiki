@@ -22,8 +22,6 @@ const (
 	pandoraBase    = "https://www.pandora.com"
 )
 
-var pandoraAPIBase = fmt.Sprintf("%s/api", pandoraBase)
-
 // Client implements the Pandora REST API defined in https://6xq.net/pandora-apidoc/rest
 type Client interface {
 	Login(username, password string) error
@@ -35,19 +33,25 @@ type client struct {
 	authToken string
 	csrfToken *http.Cookie
 
+	apiURL  string
+	csrfURL string
+
 	api *http.Client
 	log logrus.FieldLogger
 }
 
 func NewClient() *client {
 	return &client{
+		apiURL:  fmt.Sprintf("%s/api", pandoraBase),
+		csrfURL: pandoraBase,
+
 		api: cleanhttp.DefaultClient(),
 		log: logrus.WithField("prefix", "client"),
 	}
 }
 
 func (c *client) updateCSRF() error {
-	resp, err := c.api.Head(pandoraBase)
+	resp, err := c.api.Head(c.csrfURL)
 	if err != nil {
 		return fmt.Errorf("update csrf: %w", err)
 	}
@@ -93,7 +97,7 @@ func (c *client) post(relPath string, payload interface{}) (*http.Response, erro
 		http.MethodPost,
 		fmt.Sprintf(
 			"%s/%s",
-			pandoraAPIBase,
+			c.apiURL,
 			strings.TrimPrefix(relPath, "/"),
 		),
 		bytes.NewReader(buff),
