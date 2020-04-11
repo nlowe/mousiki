@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/mattn/go-colorable"
-	"github.com/nlowe/mousiki/pandora"
+	"github.com/nlowe/mousiki/pandora/api"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -20,7 +20,7 @@ var rootCmd = &cobra.Command{
 	Long:  "A command-line pandora client based off of pianobar",
 	Args:  cobra.NoArgs,
 	RunE: func(_ *cobra.Command, _ []string) error {
-		p := pandora.NewClient()
+		p := api.NewClient()
 
 		un := viper.GetString("username")
 		pw := viper.GetString("password")
@@ -38,6 +38,15 @@ var rootCmd = &cobra.Command{
 
 		if err := p.Login(un, pw); err != nil {
 			return err
+		}
+
+		stations, err := p.GetStations()
+		if err != nil {
+			return err
+		}
+
+		for _, station := range stations {
+			logrus.WithField("station", station).Info("Discovered Station")
 		}
 
 		return nil

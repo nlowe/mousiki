@@ -1,4 +1,4 @@
-package pandora
+package api
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/go-cleanhttp"
-	"github.com/nlowe/mousiki/pandora/api"
+	"github.com/nlowe/mousiki/pandora"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,6 +25,7 @@ var pandoraAPIBase = fmt.Sprintf("%s/api", pandoraBase)
 // Client implements the Pandora REST API defined in https://6xq.net/pandora-apidoc/rest
 type Client interface {
 	Login(username, password string) error
+	GetStations() ([]pandora.Station, error)
 }
 
 type client struct {
@@ -63,6 +64,8 @@ func (c *client) prepare(r *http.Request) error {
 
 	if c.authToken != "" {
 		r.Header.Set("X-AuthToken", c.authToken)
+	} else if !strings.HasSuffix(r.URL.Path, "/v1/auth/login") {
+		return errors.New("not logged in")
 	}
 
 	if c.csrfToken == nil {
@@ -106,7 +109,7 @@ func (c *client) post(relPath string, payload interface{}) (*http.Response, erro
 
 func (c *client) Login(username, password string) error {
 	c.log.WithField("username", username).Debug("Attempting to log in")
-	resp, err := c.post("/v1/auth/login", &api.LoginRequest{
+	resp, err := c.post("/v1/auth/login", &LoginRequest{
 		KeepLoggedIn: true,
 		Username:     username,
 		Password:     password,
@@ -121,7 +124,7 @@ func (c *client) Login(username, password string) error {
 		return fmt.Errorf("login: %w", err)
 	}
 
-	payload := api.LoginResponse{}
+	payload := LoginResponse{}
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
 		return fmt.Errorf("login: read response: %w", err)
 	}
@@ -130,6 +133,26 @@ func (c *client) Login(username, password string) error {
 
 	c.log.WithFields(logrus.Fields{"user": payload.Username, "webname": payload.WebName}).Info("Successfully Logged In")
 	return nil
+}
+
+func (c *client) GetStations() ([]pandora.Station, error) {
+	c.log.Debug("Fetching Stations")
+	resp, err := c.post("/v1/station/getStations", &StationRequest{
+		PageSize:   250,
+		StartIndex: 0,
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("GetStations: %w", err)
+	}
+
+	payload := StationResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, fmt.Errorf("login: read response: %w", err)
+	}
+
+	// TODO: Paging
+	return payload.Stations, nil
 }
 
 func checkHttpCode(r *http.Response) error {
