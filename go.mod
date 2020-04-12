@@ -9,6 +9,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/hashicorp/go-cleanhttp v0.5.1
 	github.com/konsorten/go-windows-terminal-sequences v1.0.2 // indirect
+	github.com/magiconair/properties v1.8.1
 	github.com/mattn/go-colorable v0.1.6
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/mapstructure v1.2.2 // indirect

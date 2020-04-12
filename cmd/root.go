@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+
+	"github.com/nlowe/mousiki/mousiki"
 
 	"github.com/mattn/go-colorable"
 	"github.com/nlowe/mousiki/audio"
@@ -48,16 +52,10 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 
-		var stationToPlay string
+		var stationToPlay pandora.Station
 		for _, station := range stations {
-			stationToPlay = station.ID
+			stationToPlay = station
 			logrus.WithField("station", station).Info("Discovered Station")
-		}
-
-		logrus.WithField("station", stationToPlay).Info("Attempting to play from station")
-		tracks, err := p.GetMoreTracks(stationToPlay)
-		if err != nil {
-			return err
 		}
 
 		player, err := audio.NewGstreamerPipeline()
@@ -70,30 +68,31 @@ var RootCmd = &cobra.Command{
 		}()
 
 		trackName := "unknown"
-
 		go func() {
 			for progress := range player.ProgressChan() {
 				logrus.WithField("progress", progress).Info(trackName)
 			}
 		}()
 
-		logrus.WithField("count", len(tracks)).Info("Pandora gave us some tracks to play")
-		for _, track := range tracks {
-			logrus.WithFields(logrus.Fields{
-				"track":       track,
-				"audioFormat": track.AudioEncoding,
-				"playbackURL": track.AudioUrl,
-			}).Info("Now Playing")
+		ctx, cancel := context.WithCancel(context.Background())
+		controller := mousiki.NewStationController(stationToPlay, p, player)
 
-			trackName = track.String()
-			player.UpdateStream(track.AudioUrl, track.FileGain)
-
-			if err := <-player.DoneChan(); err != nil {
-				return err
+		go func() {
+			for track := range controller.NotificationChan() {
+				trackName = track.String()
 			}
-		}
+		}()
 
-		logrus.Info("End of current playlist")
+		go controller.Play(ctx)
+
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+
+		<-c
+
+		cancel()
+
+		logrus.Info("Shutting Down")
 		return nil
 	},
 }
