@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/nlowe/mousiki/cmd/audiotest"
+
 	"github.com/nlowe/mousiki/pandora"
 
 	"github.com/mattn/go-colorable"
@@ -16,7 +18,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 )
 
-var rootCmd = &cobra.Command{
+var RootCmd = &cobra.Command{
 	Use:   "mousiki",
 	Short: "A command-line pandora client",
 	Long:  "A command-line pandora client based off of pianobar",
@@ -90,6 +92,8 @@ func MarkFlagRequired(cmd *cobra.Command, name string) {
 }
 
 func init() {
+	RootCmd.AddCommand(audiotest.RootCmd)
+
 	logrus.SetOutput(colorable.NewColorableStdout())
 	logrus.SetFormatter(&prefixed.TextFormatter{
 		ForceColors:     true,
@@ -111,10 +115,10 @@ func init() {
 		logrus.SetLevel(verbosity)
 	})
 
-	flags := rootCmd.PersistentFlags()
+	flags := RootCmd.PersistentFlags()
 
 	flags.StringP("username", "u", "", "Pandora Username")
-	MarkFlagRequired(rootCmd, "username")
+	MarkFlagRequired(RootCmd, "username")
 	flags.StringP("password", "p", "", "Pandora Password")
 
 	flags.StringP("audio-format", "a", string(pandora.AudioFormatAACPlus), "Audio Format to use [aacplus, mp3]")
@@ -125,7 +129,7 @@ func init() {
 }
 
 func Exec() {
-	if err := rootCmd.Execute(); err != nil {
+	if err := RootCmd.Execute(); err != nil {
 		panic(err)
 	}
 }

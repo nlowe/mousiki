@@ -4,7 +4,7 @@ type AudioFormat string
 
 const (
 	AudioFormatAACPlus AudioFormat = "aacplus"
-	AudioFormatMP3     AudioFormat = "mp3"
+	AudioFormatMP3     AudioFormat = "mp3-hifi"
 )
 
 func IsValidAudioFormat(f string) bool {
