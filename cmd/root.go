@@ -5,11 +5,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nlowe/mousiki/cmd/audiotest"
-
-	"github.com/nlowe/mousiki/pandora"
-
 	"github.com/mattn/go-colorable"
+	"github.com/nlowe/mousiki/audio"
+	"github.com/nlowe/mousiki/cmd/audiotest"
+	"github.com/nlowe/mousiki/pandora"
 	"github.com/nlowe/mousiki/pandora/api"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -61,28 +60,40 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 
-		for _, track := range tracks {
-			logrus.WithFields(logrus.Fields{
-				"track":       track,
-				"audioFormat": track.AudioEncoding,
-				"playbackURL": track.AudioUrl,
-			}).Info("Got Track")
-		}
-
-		logrus.WithField("station", stationToPlay).Info("Attempting to get even more tracks")
-		tracks, err = p.GetMoreTracks(stationToPlay)
+		player, err := audio.NewGstreamerPipeline()
 		if err != nil {
 			return err
 		}
 
+		defer func() {
+			_ = player.Close()
+		}()
+
+		trackName := "unknown"
+
+		go func() {
+			for progress := range player.ProgressChan() {
+				logrus.WithField("progress", progress).Info(trackName)
+			}
+		}()
+
+		logrus.WithField("count", len(tracks)).Info("Pandora gave us some tracks to play")
 		for _, track := range tracks {
 			logrus.WithFields(logrus.Fields{
 				"track":       track,
 				"audioFormat": track.AudioEncoding,
 				"playbackURL": track.AudioUrl,
-			}).Info("Got Track")
+			}).Info("Now Playing")
+
+			trackName = track.String()
+			player.UpdateStream(track.AudioUrl, track.FileGain)
+
+			if err := <-player.DoneChan(); err != nil {
+				return err
+			}
 		}
 
+		logrus.Info("End of current playlist")
 		return nil
 	},
 }
