@@ -13,6 +13,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
+      - name: Install Dev Dependencies
+        if: matrix.os == 'windows-latest'
+        run: choco install pkgconfiglite gstreamer
+
+      - name: Install Dev Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq gstreamer1.0 gstreamer-plugins-base1.0 libgstreamer1.0-dev
+
+      - name: Install Dev Dependencies
+        if: matrix.os == 'macos-latest'
+        run: brew install -y pkg-config gstreamer gst-plugins-base
+
       - name: Set up Go
         uses: actions/setup-go@v1
         with:

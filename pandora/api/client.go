@@ -68,6 +68,8 @@ func (c *client) updateCSRF() error {
 
 func (c *client) prepare(r *http.Request) error {
 	r.Header.Set("Content-Type", "application/json")
+	r.Header.Set("Accept", "application/json")
+	r.Header.Set("User-Agent", "Mozilla/5.0 (X11; Datanyze; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.92 Safari/537.36")
 
 	if c.authToken != "" {
 		r.Header.Set("X-AuthToken", c.authToken)
@@ -178,9 +180,10 @@ func (c *client) GetMoreTracks(stationId string) ([]pandora.Track, error) {
 	// TODO: It doesn't seem to matter what format we request, pandora always gives us aacplus
 	// TODO: Does StartingAtTrackId need to be set when continuing to play a station?
 	resp, err := c.post("/v1/playlist/getFragment", &GetPlaylistFragmentRequest{
-		StationID:      stationId,
-		IsStationStart: true,
-		AudioFormat:    f,
+		StationID:             stationId,
+		IsStationStart:        true,
+		FragmentRequestReason: FragmentRequestReasonNormal,
+		AudioFormat:           f,
 	})
 
 	if err != nil {

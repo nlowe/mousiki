@@ -10,7 +10,7 @@ TODO
 
 ## Building
 
-You need Go 1.12+ or vgo for Go Modules support
+You need Go 1.12+ or vgo for Go Modules support. You also need a C compiler that works with CGO and gstreamer-1.0-devel
 
 ```bash
 # Linux / Unix / macOS

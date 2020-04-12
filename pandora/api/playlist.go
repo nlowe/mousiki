@@ -2,11 +2,19 @@ package api
 
 import "github.com/nlowe/mousiki/pandora"
 
+type FragmentRequestReason string
+
+const (
+	FragmentRequestReasonNormal FragmentRequestReason = "Normal"
+	FragmentRequestReasonString FragmentRequestReason = "Skip"
+)
+
 type GetPlaylistFragmentRequest struct {
-	StationID         string              `json:"stationId"`
-	IsStationStart    bool                `json:"isStationStart"`
-	AudioFormat       pandora.AudioFormat `json:"AudioFormat"`
-	StartingAtTrackId *string             `json:"startingAtTrackId"`
+	StationID             string                `json:"stationId"`
+	IsStationStart        bool                  `json:"isStationStart"`
+	FragmentRequestReason FragmentRequestReason `json:"fragmentRequestReason"`
+	AudioFormat           pandora.AudioFormat   `json:"audioFormat"`
+	StartingAtTrackId     *string               `json:"startingAtTrackId"`
 
 	OnDemandArtistMessageArtistUidHex *string `json:"onDemandArtistMessageArtistUidHex"`
 	OnDemandArtistMessageIdHex        *string `json:"onDemandArtistMessageIdHex"`

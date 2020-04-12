@@ -44,7 +44,7 @@ type Track struct {
 	ComposerName string   `json:"composerName"`
 	ArtistArt    []Art    `json:"artistArt"`
 	AlbumArt     []Art    `json:"albumArt"`
-	Genre        []string `json:"Genre"`
+	Genre        []string `json:"genre"`
 
 	IsCompilation bool `json:"isCompilation"`
 	IsFeatured    bool `json:"isFeatured"`
