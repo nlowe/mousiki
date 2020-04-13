@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/cheggaaa/pb/v3"
+	"github.com/eiannone/keyboard"
 	"github.com/mattn/go-colorable"
 	"github.com/nlowe/mousiki/audio"
 	"github.com/nlowe/mousiki/cmd/audiotest"
@@ -50,6 +51,11 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 
+		if err := keyboard.Open(); err != nil {
+			return err
+		}
+		defer keyboard.Close()
+
 		stations, err := p.GetStations()
 		if err != nil {
 			return err
@@ -78,7 +84,7 @@ var RootCmd = &cobra.Command{
 			for progress := range player.ProgressChan() {
 				progressLock.Lock()
 				if bar == nil {
-					bar = pb.Start64(int64(progress.Duration.Seconds())).SetTemplate(trackTemplate)
+					bar = pb.Start64(int64(progress.Duration.Seconds())).SetTemplate(trackTemplate).SetWriter(os.Stdout)
 				}
 				bar.SetCurrent(int64(progress.Progress.Seconds()))
 				bar.Set("track", trackName)
@@ -107,7 +113,42 @@ var RootCmd = &cobra.Command{
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
 
-		<-c
+		events := make(chan rune)
+		go func() {
+			for {
+				c, k, e := keyboard.GetSingleKey()
+				if e != nil {
+					panic(e)
+				}
+
+				if k == keyboard.KeySpace {
+					events <- ' '
+				} else {
+					events <- c
+				}
+			}
+		}()
+
+	loop:
+		for {
+			select {
+			case ev := <-events:
+				switch ev {
+				case 'q':
+					close(c)
+				case 'n':
+					controller.Skip()
+				case ' ':
+					if player.IsPlaying() {
+						player.Pause()
+					} else {
+						player.Play()
+					}
+				}
+			case <-c:
+				break loop
+			}
+		}
 
 		cancel()
 

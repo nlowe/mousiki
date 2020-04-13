@@ -17,6 +17,7 @@ type StationController struct {
 	playing pandora.Track
 	queue   []pandora.Track
 
+	skip          chan struct{}
 	notifications chan pandora.Track
 
 	log logrus.FieldLogger
@@ -28,6 +29,7 @@ func NewStationController(s pandora.Station, c api.Client, p audio.Player) *Stat
 		pandora: c,
 		player:  p,
 
+		skip:          make(chan struct{}, 1),
 		notifications: make(chan pandora.Track, 1),
 
 		log: logrus.WithFields(logrus.Fields{
@@ -64,6 +66,8 @@ func (s *StationController) Play(ctx context.Context) {
 		s.player.UpdateStream(s.playing.AudioUrl, s.playing.FileGain)
 
 		select {
+		case <-s.skip:
+			s.log.Info("Skipping to next track")
 		case err := <-s.player.DoneChan():
 			if err != nil {
 				// TODO: Bubble up error?
@@ -73,6 +77,11 @@ func (s *StationController) Play(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (s *StationController) Skip() {
+	s.player.Pause()
+	s.skip <- struct{}{}
 }
 
 func (s *StationController) NowPlaying() pandora.Track {
