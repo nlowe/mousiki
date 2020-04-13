@@ -17,6 +17,7 @@ type gstreamerPlayer struct {
 	pipeline *gst.Pipeline
 	src      *gst.Element
 
+	playing  bool
 	progress chan PlaybackProgress
 	done     chan error
 
@@ -116,6 +117,7 @@ func (g *gstreamerPlayer) setupInitialSource(url string) error {
 func (g *gstreamerPlayer) Close() error {
 	// TODO: Do we have to do anything else to close the pipeline properly?
 	g.pipeline.SetState(gst.StateNull)
+	g.playing = false
 	close(g.done)
 	close(g.progress)
 	return nil
@@ -123,6 +125,7 @@ func (g *gstreamerPlayer) Close() error {
 
 func (g *gstreamerPlayer) UpdateStream(url string, volumeAdjustment float64) {
 	g.log.WithField("url", url).Info("Updating Stream")
+	g.playing = false
 	g.pipeline.SetState(gst.StateNull)
 	if g.src == nil {
 		if err := g.setupInitialSource(url); err != nil {
@@ -138,11 +141,17 @@ func (g *gstreamerPlayer) UpdateStream(url string, volumeAdjustment float64) {
 func (g *gstreamerPlayer) Play() {
 	g.log.Info("Resuming playback")
 	g.pipeline.SetState(gst.StatePlaying)
+	g.playing = true
 }
 
 func (g *gstreamerPlayer) Pause() {
 	g.log.Info("Pausing Playback")
 	g.pipeline.SetState(gst.StatePaused)
+	g.playing = false
+}
+
+func (g *gstreamerPlayer) IsPlaying() bool {
+	return g.playing
 }
 
 func (g *gstreamerPlayer) ProgressChan() <-chan PlaybackProgress {

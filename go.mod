@@ -5,6 +5,7 @@ go 1.14
 replace github.com/notedit/gst => github.com/nlowe/gst v0.0.5-0.20200412052358-c11ad227109e
 
 require (
+	github.com/cheggaaa/pb/v3 v3.0.4
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/hashicorp/go-cleanhttp v0.5.1

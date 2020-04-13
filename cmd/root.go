@@ -6,12 +6,13 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 
-	"github.com/nlowe/mousiki/mousiki"
-
+	"github.com/cheggaaa/pb/v3"
 	"github.com/mattn/go-colorable"
 	"github.com/nlowe/mousiki/audio"
 	"github.com/nlowe/mousiki/cmd/audiotest"
+	"github.com/nlowe/mousiki/mousiki"
 	"github.com/nlowe/mousiki/pandora"
 	"github.com/nlowe/mousiki/pandora/api"
 	"github.com/sirupsen/logrus"
@@ -20,6 +21,8 @@ import (
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"golang.org/x/crypto/ssh/terminal"
 )
+
+const trackTemplate pb.ProgressBarTemplate = `{{string . "track"}} {{bar . "[" "#" ">" "_" "]"}} {{string . "suffix"}}`
 
 var RootCmd = &cobra.Command{
 	Use:   "mousiki",
@@ -67,10 +70,20 @@ var RootCmd = &cobra.Command{
 			_ = player.Close()
 		}()
 
+		progressLock := sync.Mutex{}
+		var bar *pb.ProgressBar
+
 		trackName := "unknown"
 		go func() {
 			for progress := range player.ProgressChan() {
-				logrus.WithField("progress", progress).Info(trackName)
+				progressLock.Lock()
+				if bar == nil {
+					bar = pb.Start64(int64(progress.Duration.Seconds())).SetTemplate(trackTemplate)
+				}
+				bar.SetCurrent(int64(progress.Progress.Seconds()))
+				bar.Set("track", trackName)
+				bar.Set("suffix", progress.String())
+				progressLock.Unlock()
 			}
 		}()
 
@@ -80,6 +93,12 @@ var RootCmd = &cobra.Command{
 		go func() {
 			for track := range controller.NotificationChan() {
 				trackName = track.String()
+				progressLock.Lock()
+				if bar != nil {
+					bar.Finish()
+					bar = nil
+				}
+				progressLock.Unlock()
 			}
 		}()
 

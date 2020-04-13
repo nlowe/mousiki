@@ -42,6 +42,20 @@ func (_m *Player) DoneChan() <-chan error {
 	return r0
 }
 
+// IsPlaying provides a mock function with given fields:
+func (_m *Player) IsPlaying() bool {
+	ret := _m.Called()
+
+	var r0 bool
+	if rf, ok := ret.Get(0).(func() bool); ok {
+		r0 = rf()
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+
+	return r0
+}
+
 // Pause provides a mock function with given fields:
 func (_m *Player) Pause() {
 	_m.Called()

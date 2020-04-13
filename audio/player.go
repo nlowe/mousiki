@@ -14,6 +14,9 @@ type Player interface {
 	// Pause pauses the playback stream
 	Pause()
 
+	// IsPlaying is true if the player is currently playing a track
+	IsPlaying() bool
+
 	// ProgressChan reports playback progress on at least a 1hz interval
 	ProgressChan() <-chan PlaybackProgress
 
