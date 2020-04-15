@@ -22,7 +22,7 @@ func MakeTrack() pandora.Track {
 		AudioUrl:                   "",
 		AudioEncoding:              pandora.AudioFormatAACPlus,
 		TrackLengthSeconds:         123,
-		TrackRating:                0,
+		Rating:                     0,
 		AllowStartStationFromTrack: false,
 		AllowShareTrack:            false,
 		AllowTiredOfTrack:          false,

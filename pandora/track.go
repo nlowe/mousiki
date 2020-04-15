@@ -8,6 +8,15 @@ const (
 	TrackTypeTrack TrackType = "Track"
 )
 
+type TrackRating int
+
+// TODO: Verify these are correct
+const (
+	TrackRatingNeutral = 0
+	TrackRatingLike    = 1
+	TrackRatingBan     = -1
+)
+
 type Track struct {
 	MusicId       string `json:"musicId"`
 	PandoraId     string `json:"pandoraId"`
@@ -24,7 +33,7 @@ type Track struct {
 	AudioUrl           string      `json:"audioURL"`
 	AudioEncoding      AudioFormat `json:"audioEncoding"`
 	TrackLengthSeconds int         `json:"trackLength"`
-	TrackRating        int         `json:"trackRating"`
+	Rating             TrackRating `json:"rating"`
 
 	AllowStartStationFromTrack bool     `json:"allowStartStationFromTrack"`
 	AllowShareTrack            bool     `json:"allowShareTrack"`
