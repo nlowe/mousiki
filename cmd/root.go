@@ -4,22 +4,21 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
 	"strings"
-	"sync"
 
 	"github.com/cheggaaa/pb/v3"
-	"github.com/eiannone/keyboard"
 	"github.com/mattn/go-colorable"
 	"github.com/nlowe/mousiki/audio"
 	"github.com/nlowe/mousiki/cmd/audiotest"
 	"github.com/nlowe/mousiki/mousiki"
+	"github.com/nlowe/mousiki/mousiki/ui"
 	"github.com/nlowe/mousiki/pandora"
 	"github.com/nlowe/mousiki/pandora/api"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
+	"gitlab.com/tslocum/cview"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -51,11 +50,6 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 
-		if err := keyboard.Open(); err != nil {
-			return err
-		}
-		defer keyboard.Close()
-
 		stations, err := p.GetStations()
 		if err != nil {
 			return err
@@ -76,84 +70,20 @@ var RootCmd = &cobra.Command{
 			_ = player.Close()
 		}()
 
-		progressLock := sync.Mutex{}
-		var bar *pb.ProgressBar
-
-		trackName := "unknown"
-		go func() {
-			for progress := range player.ProgressChan() {
-				progressLock.Lock()
-				if bar == nil {
-					bar = pb.Start64(int64(progress.Duration.Seconds())).SetTemplate(trackTemplate).SetWriter(os.Stdout)
-				}
-				bar.SetCurrent(int64(progress.Progress.Seconds()))
-				bar.Set("track", trackName)
-				bar.Set("suffix", progress.String())
-				progressLock.Unlock()
-			}
-		}()
-
 		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
 		controller := mousiki.NewStationController(stationToPlay, p, player)
 
-		go func() {
-			for track := range controller.NotificationChan() {
-				trackName = track.String()
-				progressLock.Lock()
-				if bar != nil {
-					bar.Finish()
-					bar = nil
-				}
-				progressLock.Unlock()
-			}
-		}()
+		root := ui.MainWindow(stationToPlay, player, controller)
+		app := cview.NewApplication().SetRoot(root, true)
+		app.SetInputCapture(root.HandleKey(app))
+		logrus.SetOutput(root)
 
+		go root.SyncData(ctx, app)
 		go controller.Play(ctx)
-
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt)
-
-		events := make(chan rune)
-		go func() {
-			for {
-				c, k, e := keyboard.GetSingleKey()
-				if e != nil {
-					panic(e)
-				}
-
-				if k == keyboard.KeySpace {
-					events <- ' '
-				} else {
-					events <- c
-				}
-			}
-		}()
-
-	loop:
-		for {
-			select {
-			case ev := <-events:
-				switch ev {
-				case 'q':
-					close(c)
-				case 'n':
-					controller.Skip()
-				case ' ':
-					if player.IsPlaying() {
-						player.Pause()
-					} else {
-						player.Play()
-					}
-				}
-			case <-c:
-				break loop
-			}
-		}
-
-		cancel()
-
-		logrus.Info("Shutting Down")
-		return nil
+		app.QueueUpdateDraw(func() {})
+		return app.Run()
 	},
 }
 

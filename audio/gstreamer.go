@@ -124,7 +124,7 @@ func (g *gstreamerPlayer) Close() error {
 }
 
 func (g *gstreamerPlayer) UpdateStream(url string, volumeAdjustment float64) {
-	g.log.WithField("url", url).Info("Updating Stream")
+	g.log.WithField("url", url).Debug("Updating Stream")
 	g.playing = false
 	g.pipeline.SetState(gst.StateNull)
 	if g.src == nil {

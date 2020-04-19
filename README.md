@@ -4,6 +4,8 @@
 
 A command-line pandora client. Inspired by [PromyLOPh/pianobar](https://github.com/PromyLOPh/pianobar).
 
+![](doc/mousiki.png)
+
 ## Usage
 
 Start `mousiki` with the `--username` parameter, you will be prompted for
@@ -38,7 +40,6 @@ In no particular order:
 * Feedback Management (Thumbs Up/Down tracks) for both the current track and recently played tracks
 * ReplayGain
 * Skip ads / artist messages automatically
-* A better UI that doesn't trip over itself when logging / reporting playback progress
 * Audio quality selection / Support for premium qualities
 
 Maybe some day:

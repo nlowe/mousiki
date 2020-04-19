@@ -50,10 +50,6 @@ func (s *StationController) Play(ctx context.Context) {
 				s.log.WithError(err).Fatal("Failed to fetch more tracks")
 			}
 
-			// TODO: Notify when we fetch new tracks?
-			for _, t := range tracks {
-				s.log.WithField("track", t).Info("Up Next")
-			}
 			s.queue = append(s.queue, tracks...)
 		}
 
