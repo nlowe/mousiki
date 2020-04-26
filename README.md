@@ -34,11 +34,9 @@ some tracks for the station and begin playback.
 
 In no particular order:
 
-* Fix CI on windows
 * Publish binaries to GitHub
 * Station Selection
 * Feedback Management (Thumbs Up/Down tracks) for both the current track and recently played tracks
-* ReplayGain
 * Skip ads / artist messages automatically
 * Audio quality selection / Support for premium qualities
 
@@ -49,7 +47,9 @@ Maybe some day:
 
 ## Building
 
-You need Go 1.12+ or vgo for Go Modules support. You also need a C compiler that works with CGO and gstreamer-1.0-devel
+You need Go 1.12+ or vgo for Go Modules support. You also need a C compiler that works with CGO and gstreamer-1.0-devel.
+
+See [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) for a rough idea of what to install.
 
 ```bash
 # Linux / Unix / macOS
