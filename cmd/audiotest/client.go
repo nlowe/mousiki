@@ -7,6 +7,7 @@ import (
 	"github.com/nlowe/mousiki/audio"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var clientCmd = &cobra.Command{
@@ -27,7 +28,7 @@ var clientCmd = &cobra.Command{
 			}
 		}()
 
-		player.UpdateStream(args[0], 1.0)
+		player.UpdateStream(args[0], viper.GetFloat64("gain"))
 
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
@@ -42,5 +43,11 @@ var clientCmd = &cobra.Command{
 }
 
 func init() {
+	flags := clientCmd.PersistentFlags()
+
+	flags.Float64P("gain", "g", 0.0, "Relative File Gain (in dB) to apply")
+
+	_ = viper.BindPFlags(flags)
+
 	RootCmd.AddCommand(clientCmd)
 }

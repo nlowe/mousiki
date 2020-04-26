@@ -16,6 +16,7 @@ var playbackRegex = regexp.MustCompile(`.*current=\(gint64\)(\d+), total=\(gint6
 type gstreamerPlayer struct {
 	pipeline *gst.Pipeline
 	src      *gst.Element
+	volume   *gst.Element
 
 	playing  bool
 	progress chan PlaybackProgress
@@ -50,14 +51,20 @@ func NewGstreamerPipeline() (*gstreamerPlayer, error) {
 		return nil, err
 	}
 
+	result.volume, err = gst.ElementFactoryMake("volume", "volume")
+	if err != nil {
+		return nil, err
+	}
+
 	sink, err := gst.ElementFactoryMake("autoaudiosink", "sink")
 	if err != nil {
 		return nil, err
 	}
 
-	result.pipeline.AddMany(progress, convert, sink)
+	result.pipeline.AddMany(progress, convert, result.volume, sink)
 	progress.Link(convert)
-	convert.Link(sink)
+	convert.Link(result.volume)
+	result.volume.Link(sink)
 
 	// TODO: Stop this goroutine when we close the player
 	go func() {
@@ -124,9 +131,17 @@ func (g *gstreamerPlayer) Close() error {
 }
 
 func (g *gstreamerPlayer) UpdateStream(url string, volumeAdjustment float64) {
-	g.log.WithField("url", url).Debug("Updating Stream")
+	percentGain := RelativeDBToPercent(volumeAdjustment)
+	g.log.WithFields(logrus.Fields{
+		"url":           url,
+		"gain":          volumeAdjustment,
+		"volumePercent": percentGain * 100,
+	}).Debug("Updating Stream")
 	g.playing = false
 	g.pipeline.SetState(gst.StateNull)
+
+	g.volume.SetObject("volume", percentGain)
+
 	if g.src == nil {
 		if err := g.setupInitialSource(url); err != nil {
 			g.done <- err
@@ -135,6 +150,7 @@ func (g *gstreamerPlayer) UpdateStream(url string, volumeAdjustment float64) {
 	} else {
 		g.src.SetObject("uri", url)
 	}
+
 	g.Play()
 }
 

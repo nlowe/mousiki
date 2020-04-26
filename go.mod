@@ -2,12 +2,10 @@ module github.com/nlowe/mousiki
 
 go 1.14
 
-replace github.com/notedit/gst => github.com/nlowe/gst v0.0.5-0.20200412052358-c11ad227109e
+replace github.com/notedit/gst => github.com/nlowe/gst v0.0.5-0.20200426072152-f1479c36b5b9
 
 require (
 	github.com/cheggaaa/pb/v3 v3.0.4
-	github.com/davecgh/go-spew v1.1.1
-	github.com/eiannone/keyboard v0.0.0-20190314115158-7169d0afeb4f
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gdamore/tcell v1.3.0
 	github.com/google/uuid v1.1.1
