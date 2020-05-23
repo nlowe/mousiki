@@ -4,15 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/magiconair/properties/assert"
-	"github.com/nlowe/mousiki/testutil"
-
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
-
 	"github.com/google/uuid"
+	"github.com/magiconair/properties/assert"
 	"github.com/nlowe/mousiki/mocks"
 	"github.com/nlowe/mousiki/pandora"
+	"github.com/nlowe/mousiki/testutil"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStationController_Play(t *testing.T) {
@@ -22,7 +20,7 @@ func TestStationController_Play(t *testing.T) {
 	}
 	c := &mocks.Client{}
 	p := &mocks.Player{}
-	sut := NewStationController(s, c, p)
+	sut := NewStationController(c, p)
 	sut.log = testutil.NopLogger()
 
 	next := 0
@@ -63,6 +61,7 @@ func TestStationController_Play(t *testing.T) {
 	})
 	p.On("DoneChan").Return(doneChRet)
 
+	sut.SwitchStations(s)
 	go sut.Play(ctx)
 	<-ctx.Done()
 
