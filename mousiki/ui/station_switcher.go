@@ -74,10 +74,17 @@ func (s *stationPicker) Open() {
 		return
 	}
 
+	currentStation := s.controller.CurrentStation()
+
 	s.Clear()
 	for _, station := range stations {
+		shortcut := ' '
+		if currentStation.ID == station.ID {
+			shortcut = '*'
+		}
+
 		s.log.WithField("name", station.Name).Debug("Found Station")
-		s.AddItem(station.Name, station.ID, ' ', s.makeSwitchFunction(station))
+		s.AddItem(station.Name, station.ID, shortcut, s.makeSwitchFunction(station))
 	}
 
 	s.pager.ShowPage(stationPickerPageName)

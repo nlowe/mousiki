@@ -120,6 +120,11 @@ func (s *StationController) SwitchStations(station pandora.Station) {
 	s.stationLock.Lock()
 	defer s.stationLock.Unlock()
 
+	if s.station.ID == station.ID {
+		s.log.Info("Requested station is already playing")
+		return
+	}
+
 	s.log.WithField("newStation", station).Info("Switching Stations")
 
 	// Change the station and clear the queue to force the next control loop
@@ -141,6 +146,10 @@ func (s *StationController) SwitchStations(station pandora.Station) {
 
 func (s *StationController) StationChanged() <-chan pandora.Station {
 	return s.stationChanged
+}
+
+func (s *StationController) CurrentStation() pandora.Station {
+	return s.station
 }
 
 func (s *StationController) NotificationChan() <-chan pandora.Track {

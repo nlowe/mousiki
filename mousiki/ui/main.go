@@ -209,12 +209,14 @@ func (w *mainWindow) updateProgress(app *cview.Application, p audio.PlaybackProg
 
 func (w *mainWindow) updateNowPlaying(app *cview.Application, t pandora.Track) {
 	app.QueueUpdateDraw(func() {
+		station := w.controller.CurrentStation()
+
 		w.nowPlayingSong.SetText(FormatTrackTitle(t))
 		w.nowPlayingArtist.SetText(FormatTrackArtist(t))
 		w.nowPlayingAlbum.SetText(FormatTrackAlbum(t))
 
 		if w.nowPlaying.SongTitle != "" {
-			_, _ = w.history.Write([]byte("\n" + FormatTrack(w.nowPlaying)))
+			_, _ = w.history.Write([]byte("\n" + FormatTrack(w.nowPlaying, station)))
 		}
 
 		w.nowPlaying = t
@@ -222,7 +224,7 @@ func (w *mainWindow) updateNowPlaying(app *cview.Application, t pandora.Track) {
 		w.upNext.Clear()
 		buff := bufio.NewWriter(w.upNext)
 		for _, t := range w.controller.UpNext() {
-			_, _ = buff.WriteString(FormatTrack(t) + "\n")
+			_, _ = buff.WriteString(FormatTrack(t, station) + "\n")
 		}
 		_ = buff.Flush()
 	})
