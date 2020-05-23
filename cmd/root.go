@@ -50,17 +50,6 @@ var RootCmd = &cobra.Command{
 			return err
 		}
 
-		stations, err := p.GetStations()
-		if err != nil {
-			return err
-		}
-
-		var stationToPlay pandora.Station
-		for _, station := range stations {
-			stationToPlay = station
-			logrus.WithField("station", station).Info("Discovered Station")
-		}
-
 		player, err := audio.NewGstreamerPipeline()
 		if err != nil {
 			return err
@@ -73,16 +62,17 @@ var RootCmd = &cobra.Command{
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		controller := mousiki.NewStationController(stationToPlay, p, player)
+		controller := mousiki.NewStationController(p, player)
 
-		root := ui.MainWindow(stationToPlay, player, controller)
+		root := ui.MainWindow(cancel, player, controller)
 		app := cview.NewApplication().SetRoot(root, true)
 		app.SetInputCapture(root.HandleKey(app))
 		logrus.SetOutput(root)
 
 		go root.SyncData(ctx, app)
-		go controller.Play(ctx)
-		app.QueueUpdateDraw(func() {})
+		app.QueueUpdateDraw(func() {
+			root.ShowStationPicker(app)
+		})
 		return app.Run()
 	},
 }

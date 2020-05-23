@@ -2,6 +2,7 @@ package mousiki
 
 import (
 	"context"
+	"sync"
 
 	"github.com/nlowe/mousiki/audio"
 	"github.com/nlowe/mousiki/pandora"
@@ -9,39 +10,56 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const NoStationSelected = "__mousiki_no_station"
+
+var noStationSelected = pandora.Station{
+	ID:   NoStationSelected,
+	Name: "No Station Selected",
+}
+
 type StationController struct {
-	station pandora.Station
-	pandora api.Client
-	player  audio.Player
+	stationLock sync.Mutex
+	station     pandora.Station
+	pandora     api.Client
+	player      audio.Player
 
 	playing pandora.Track
 	queue   []pandora.Track
 
-	skip          chan struct{}
-	notifications chan pandora.Track
+	skip           chan struct{}
+	notifications  chan pandora.Track
+	stationChanged chan pandora.Station
 
 	log logrus.FieldLogger
 }
 
-func NewStationController(s pandora.Station, c api.Client, p audio.Player) *StationController {
+func NewStationController(c api.Client, p audio.Player) *StationController {
 	return &StationController{
-		station: s,
 		pandora: c,
 		player:  p,
+		station: noStationSelected,
 
-		skip:          make(chan struct{}, 1),
-		notifications: make(chan pandora.Track, 1),
+		notifications:  make(chan pandora.Track, 1),
+		stationChanged: make(chan pandora.Station, 1),
 
 		log: logrus.WithFields(logrus.Fields{
 			"prefix":  "stationController",
-			"station": s.String(),
+			"station": noStationSelected,
 		}),
 	}
 }
 
 func (s *StationController) Play(ctx context.Context) {
+	if s.station.ID == NoStationSelected {
+		s.log.Error("No Station Selected, nothing to play")
+		return
+	}
+
+	s.skip = make(chan struct{}, 1)
+
 	for {
 		// TODO: Configure prefetch limit?
+		s.stationLock.Lock()
 		if len(s.queue) == 0 {
 			s.log.Info("Fetching more tracks")
 			tracks, err := s.pandora.GetMoreTracks(s.station.ID)
@@ -60,6 +78,7 @@ func (s *StationController) Play(ctx context.Context) {
 		case s.notifications <- s.playing:
 		}
 		s.player.UpdateStream(s.playing.AudioUrl, s.playing.FileGain)
+		s.stationLock.Unlock()
 
 		select {
 		case <-s.skip:
@@ -76,8 +95,10 @@ func (s *StationController) Play(ctx context.Context) {
 }
 
 func (s *StationController) Skip() {
-	s.player.Pause()
-	s.skip <- struct{}{}
+	if s.skip != nil {
+		s.player.Pause()
+		s.skip <- struct{}{}
+	}
 }
 
 func (s *StationController) NowPlaying() pandora.Track {
@@ -89,6 +110,37 @@ func (s *StationController) UpNext() []pandora.Track {
 	copy(result, s.queue)
 
 	return result
+}
+
+func (s *StationController) ListStations() ([]pandora.Station, error) {
+	return s.pandora.GetStations()
+}
+
+func (s *StationController) SwitchStations(station pandora.Station) {
+	s.stationLock.Lock()
+	defer s.stationLock.Unlock()
+
+	s.log.WithField("newStation", station).Info("Switching Stations")
+
+	// Change the station and clear the queue to force the next control loop
+	// to fetch tracks from the new station
+	s.station = station
+	s.queue = []pandora.Track{}
+
+	// Try to skip immediately in case we're currently playing a track
+	s.Skip()
+
+	// Reset the logger to pick up the new station name
+	s.log = logrus.WithFields(logrus.Fields{
+		"prefix":  "stationController",
+		"station": station,
+	})
+
+	s.stationChanged <- station
+}
+
+func (s *StationController) StationChanged() <-chan pandora.Station {
+	return s.stationChanged
 }
 
 func (s *StationController) NotificationChan() <-chan pandora.Track {

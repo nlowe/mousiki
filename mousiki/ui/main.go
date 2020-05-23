@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	"sync"
 
 	"github.com/gdamore/tcell"
 	"github.com/nlowe/mousiki/audio"
@@ -17,12 +18,15 @@ import (
 )
 
 type mainWindow struct {
-	*cview.Grid
+	*cview.Pages
 
-	nowPlaying       pandora.Track
-	nowPlayingSong   *cview.TextView
-	nowPlayingArtist *cview.TextView
-	nowPlayingAlbum  *cview.TextView
+	stationPicker *stationPicker
+
+	nowPlaying        pandora.Track
+	nowPlayingSong    *cview.TextView
+	nowPlayingArtist  *cview.TextView
+	nowPlayingAlbum   *cview.TextView
+	nowPlayingWrapper *cview.Grid
 
 	progress     *cview.ProgressBar
 	progressText *cview.TextView
@@ -39,7 +43,7 @@ type mainWindow struct {
 	log logrus.FieldLogger
 }
 
-func MainWindow(station pandora.Station, player audio.Player, controller *mousiki.StationController) *mainWindow {
+func MainWindow(cancelFunc func(), player audio.Player, controller *mousiki.StationController) *mainWindow {
 	logView := cview.NewTextView().
 		SetDynamicColors(true).
 		ScrollToEnd()
@@ -48,7 +52,7 @@ func MainWindow(station pandora.Station, player audio.Player, controller *mousik
 		SetBorder(true)
 
 	root := &mainWindow{
-		Grid: cview.NewGrid(),
+		Pages: cview.NewPages(),
 
 		nowPlayingSong:   cview.NewTextView().SetDynamicColors(true),
 		nowPlayingArtist: cview.NewTextView().SetDynamicColors(true),
@@ -68,6 +72,11 @@ func MainWindow(station pandora.Station, player audio.Player, controller *mousik
 		w:   cview.ANSIWriter(logView),
 		log: logrus.WithField("prefix", "ui"),
 	}
+
+	grid := cview.NewGrid()
+
+	root.AddPage("main", grid, true, true)
+	root.stationPicker = NewStationPickerForPager(cancelFunc, root.Pages, controller)
 
 	root.history.ScrollToEnd().
 		SetDrawFunc(func(_ tcell.Screen, x, y, w, h int) (rx int, ry int, rw int, rh int) {
@@ -99,22 +108,22 @@ func MainWindow(station pandora.Station, player audio.Player, controller *mousik
 		AddItem(root.progress, 0, 0, 1, 1, 0, 0, false).
 		AddItem(root.progressText, 0, 1, 1, 1, 0, 0, false)
 
-	nowPlayingWrapper := cview.NewGrid().
+	root.nowPlayingWrapper = cview.NewGrid().
 		SetRows(3, 1).
 		AddItem(nowPlaying, 0, 0, 1, 1, 0, 0, false).
 		AddItem(transport, 1, 0, 1, 1, 0, 0, false)
 
-	nowPlayingWrapper.SetTitle(fmt.Sprintf(" Now Playing - %s ", station.Name)).
+	root.nowPlayingWrapper.SetTitle(" No Station Selected ").
 		SetBorder(true)
 
 	stationView := cview.NewGrid().
 		SetRows(-1, 6, 6).
 		SetColumns(-1).
 		AddItem(root.history, 0, 0, 1, 1, 0, 0, false).
-		AddItem(nowPlayingWrapper, 1, 0, 1, 1, 0, 0, false).
+		AddItem(root.nowPlayingWrapper, 1, 0, 1, 1, 0, 0, false).
 		AddItem(root.upNext, 2, 0, 1, 1, 0, 0, false)
 
-	root.SetRows(-10, -2).
+	grid.SetRows(-10, -2).
 		SetColumns(-1).
 		AddItem(stationView, 0, 0, 1, 1, 0, 0, false).
 		AddItem(logView, 1, 0, 1, 1, 0, 0, false)
@@ -124,6 +133,10 @@ func MainWindow(station pandora.Station, player audio.Player, controller *mousik
 
 func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) *tcell.EventKey {
 	return func(ev *tcell.EventKey) *tcell.EventKey {
+		if page, _ := w.GetFrontPage(); page == stationPickerPageName {
+			return w.stationPicker.HandleKey(ev)
+		}
+
 		if ev.Key() == tcell.KeyRune && ev.Rune() == ' ' {
 			if w.player.IsPlaying() {
 				w.player.Pause()
@@ -137,6 +150,8 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 			w.controller.Skip()
 		} else if ev.Key() == tcell.KeyRune && ev.Rune() == 'q' {
 			close(w.quitRequested)
+		} else if ev.Key() == tcell.KeyEscape {
+			w.ShowStationPicker(app)
 		} else {
 			return ev
 		}
@@ -145,9 +160,28 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 	}
 }
 
+func (w *mainWindow) ShowStationPicker(app *cview.Application) {
+	w.stationPicker.Open()
+	app.SetFocus(w.stationPicker)
+}
+
 func (w *mainWindow) SyncData(ctx context.Context, app *cview.Application) {
 	progress := w.player.ProgressChan()
 	next := w.controller.NotificationChan()
+
+	go func() {
+		kickstart := sync.Once{}
+
+		for {
+			station := <-w.controller.StationChanged()
+			w.nowPlayingWrapper.SetTitle(fmt.Sprintf(" Now Playing - %s ", station.Name))
+			kickstart.Do(func() {
+				w.stationPicker.EscapeAction = EscapeActionHide
+				// Set the controller to playing after the first station is selected
+				go w.controller.Play(ctx)
+			})
+		}
+	}()
 
 	for {
 		select {
