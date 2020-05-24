@@ -151,7 +151,7 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 		} else if ev.Key() == tcell.KeyRune && ev.Rune() == 'q' {
 			close(w.quitRequested)
 		} else if ev.Key() == tcell.KeyEscape {
-			w.ShowStationPicker(app)
+			w.ShowStationPicker()
 		} else {
 			return ev
 		}
@@ -160,9 +160,12 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 	}
 }
 
-func (w *mainWindow) ShowStationPicker(app *cview.Application) {
+func (w *mainWindow) OnResize(width, height int) {
+	w.stationPicker.Resize(width/2, height/2)
+}
+
+func (w *mainWindow) ShowStationPicker() {
 	w.stationPicker.Open()
-	app.SetFocus(w.stationPicker)
 }
 
 func (w *mainWindow) SyncData(ctx context.Context, app *cview.Application) {

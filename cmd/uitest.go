@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/stretchr/testify/mock"
-
 	"github.com/google/uuid"
 	"github.com/nlowe/mousiki/audio"
 	"github.com/nlowe/mousiki/mocks"
@@ -14,9 +12,8 @@ import (
 	"github.com/nlowe/mousiki/mousiki/ui"
 	"github.com/nlowe/mousiki/pandora"
 	"github.com/nlowe/mousiki/pandora/api"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"gitlab.com/tslocum/cview"
+	"github.com/stretchr/testify/mock"
 )
 
 var uiTestCmd = &cobra.Command{
@@ -47,16 +44,7 @@ var uiTestCmd = &cobra.Command{
 
 		ctx, cancel := context.WithCancel(context.TODO())
 
-		root := ui.MainWindow(cancel, player, mousiki.NewStationController(testDataAPI(), player))
-		app := cview.NewApplication().SetRoot(root, true)
-		app.SetInputCapture(root.HandleKey(app))
-		logrus.SetOutput(root)
-
-		app.QueueUpdateDraw(func() {
-			root.ShowStationPicker(app)
-		})
-
-		go root.SyncData(ctx, app)
+		app := ui.New(ctx, cancel, player, mousiki.NewStationController(testDataAPI(), player))
 		return app.Run()
 	},
 }

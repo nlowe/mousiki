@@ -18,7 +18,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
-	"gitlab.com/tslocum/cview"
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -64,15 +63,7 @@ var RootCmd = &cobra.Command{
 
 		controller := mousiki.NewStationController(p, player)
 
-		root := ui.MainWindow(cancel, player, controller)
-		app := cview.NewApplication().SetRoot(root, true)
-		app.SetInputCapture(root.HandleKey(app))
-		logrus.SetOutput(root)
-
-		go root.SyncData(ctx, app)
-		app.QueueUpdateDraw(func() {
-			root.ShowStationPicker(app)
-		})
+		app := ui.New(ctx, cancel, player, controller)
 		return app.Run()
 	},
 }

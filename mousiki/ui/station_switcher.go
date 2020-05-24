@@ -8,12 +8,7 @@ import (
 	"gitlab.com/tslocum/cview"
 )
 
-const (
-	stationPickerPageName = "stationPicker"
-
-	pagerWidth  = 40
-	pagerHeight = 10
-)
+const stationPickerPageName = "stationPicker"
 
 const (
 	EscapeActionExit = iota
@@ -21,7 +16,8 @@ const (
 )
 
 type stationPicker struct {
-	*cview.List
+	*CenteredModal
+	list *cview.List
 
 	cancelFunc func()
 
@@ -35,7 +31,7 @@ type stationPicker struct {
 
 func NewStationPickerForPager(cancelFunc func(), pager *cview.Pages, controller *mousiki.StationController) *stationPicker {
 	root := &stationPicker{
-		List: cview.NewList(),
+		list: cview.NewList(),
 
 		cancelFunc: cancelFunc,
 
@@ -45,20 +41,14 @@ func NewStationPickerForPager(cancelFunc func(), pager *cview.Pages, controller 
 		log: logrus.WithField("prefix", "stationPicker"),
 	}
 
-	root.SetTitle(" Select Station ").SetBorder(true)
-	root.SetBorder(true)
-	root.ShowSecondaryText(false)
+	root.list.ShowSecondaryText(false).
+		SetTitle(" Select Station ").
+		SetBorder(true).
+		SetBorder(true)
 
-	// TODO: Dynamic width / height?
-	// TODO: Why does this have no transparency?
-	pager.AddPage(stationPickerPageName, cview.NewFlex().
-		AddItem(nil, 0, 1, false).
-		AddItem(cview.NewFlex().SetDirection(cview.FlexRow).
-			AddItem(nil, 0, 1, false).
-			AddItem(root, pagerHeight, 1, false).
-			AddItem(nil, 0, 1, false), pagerWidth, 1, false).
-		AddItem(nil, 0, 1, false),
-		true, false)
+	root.CenteredModal = NewCenteredModal(root.list)
+
+	pager.AddPage(stationPickerPageName, root, true, false)
 	return root
 }
 
@@ -76,7 +66,7 @@ func (s *stationPicker) Open() {
 
 	currentStation := s.controller.CurrentStation()
 
-	s.Clear()
+	s.list.Clear()
 	for _, station := range stations {
 		shortcut := ' '
 		if currentStation.ID == station.ID {
@@ -84,7 +74,7 @@ func (s *stationPicker) Open() {
 		}
 
 		s.log.WithField("name", station.Name).Debug("Found Station")
-		s.AddItem(station.Name, station.ID, shortcut, s.makeSwitchFunction(station))
+		s.list.AddItem(station.Name, station.ID, shortcut, s.makeSwitchFunction(station))
 	}
 
 	s.pager.ShowPage(stationPickerPageName)
@@ -98,7 +88,7 @@ func (s *stationPicker) Close() {
 	s.pager.HidePage(stationPickerPageName)
 }
 
-func (s *stationPicker) HandleKey(ev *cview.EventKey) *cview.EventKey {
+func (s *stationPicker) HandleKey(ev *tcell.EventKey) *tcell.EventKey {
 	if ev.Key() == tcell.KeyEscape {
 		if s.EscapeAction == EscapeActionExit {
 			s.cancelFunc()
