@@ -261,6 +261,7 @@ func (w *mainWindow) SyncData(ctx context.Context, app *cview.Application) {
 			} else {
 				app.QueueUpdateDraw(func() {
 					w.nowPlayingWrapper.SetBorderColor(tcell.ColorWhite)
+					w.progress.SetFilledColor(tcell.ColorWhite)
 				})
 			}
 		}
@@ -272,6 +273,11 @@ func (w *mainWindow) updateProgress(app *cview.Application, p audio.PlaybackProg
 		w.progress.SetMax(int(p.Duration.Seconds()))
 		w.progress.SetProgress(int(p.Progress.Seconds()))
 		w.progressText.SetText(p.String())
+
+		if w.player.IsPlaying() {
+			w.nowPlayingWrapper.SetBorderColor(tcell.ColorWhite)
+			w.progress.SetFilledColor(tcell.ColorWhite)
+		}
 	})
 }
 
