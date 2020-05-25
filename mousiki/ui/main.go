@@ -22,7 +22,7 @@ type mainWindow struct {
 
 	stationPicker *stationPicker
 
-	nowPlaying        pandora.Track
+	nowPlaying        *pandora.Track
 	nowPlayingSong    *cview.TextView
 	nowPlayingArtist  *cview.TextView
 	nowPlayingAlbum   *cview.TextView
@@ -152,6 +152,20 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 			close(w.quitRequested)
 		} else if ev.Key() == tcell.KeyEscape {
 			w.ShowStationPicker()
+		} else if ev.Key() == tcell.KeyRune && ev.Rune() == '+' {
+			if err := w.controller.ProvideFeedback(pandora.TrackRatingLike); err != nil {
+				w.log.WithError(err).Error("Failed to add feedback")
+			}
+
+			w.updateNowPlaying(app, w.nowPlaying)
+		} else if ev.Key() == tcell.KeyRune && ev.Rune() == 't' {
+			if err := w.controller.ProvideFeedback(pandora.TrackRatingTired); err != nil {
+				w.log.WithError(err).Error("Failed to add feedback")
+			}
+		} else if ev.Key() == tcell.KeyRune && ev.Rune() == '-' {
+			if err := w.controller.ProvideFeedback(pandora.TrackRatingBan); err != nil {
+				w.log.WithError(err).Error("Failed to add feedback")
+			}
 		} else {
 			return ev
 		}
@@ -198,6 +212,7 @@ func (w *mainWindow) SyncData(ctx context.Context, app *cview.Application) {
 			w.updateProgress(app, p)
 		case t := <-next:
 			w.updateNowPlaying(app, t)
+			w.updateUpNext(app)
 		}
 	}
 }
@@ -210,7 +225,7 @@ func (w *mainWindow) updateProgress(app *cview.Application, p audio.PlaybackProg
 	})
 }
 
-func (w *mainWindow) updateNowPlaying(app *cview.Application, t pandora.Track) {
+func (w *mainWindow) updateNowPlaying(app *cview.Application, t *pandora.Track) {
 	app.QueueUpdateDraw(func() {
 		station := w.controller.CurrentStation()
 
@@ -218,19 +233,23 @@ func (w *mainWindow) updateNowPlaying(app *cview.Application, t pandora.Track) {
 		w.nowPlayingArtist.SetText(FormatTrackArtist(t))
 		w.nowPlayingAlbum.SetText(FormatTrackAlbum(t))
 
-		if w.nowPlaying.SongTitle != "" {
+		if w.nowPlaying != nil && w.nowPlaying != t {
 			_, _ = w.history.Write([]byte("\n" + FormatTrack(w.nowPlaying, station)))
 		}
 
 		w.nowPlaying = t
-
-		w.upNext.Clear()
-		buff := bufio.NewWriter(w.upNext)
-		for _, t := range w.controller.UpNext() {
-			_, _ = buff.WriteString(FormatTrack(t, station) + "\n")
-		}
-		_ = buff.Flush()
 	})
+}
+
+func (w *mainWindow) updateUpNext(app *cview.Application) {
+	station := w.controller.CurrentStation()
+
+	w.upNext.Clear()
+	buff := bufio.NewWriter(w.upNext)
+	for _, t := range w.controller.UpNext() {
+		_, _ = buff.WriteString(FormatTrack(&t, station) + "\n")
+	}
+	_ = buff.Flush()
 }
 
 func (w *mainWindow) Write(p []byte) (n int, err error) {

@@ -27,6 +27,8 @@ type Client interface {
 	Login(username, password string) error
 	GetStations() ([]pandora.Station, error)
 	GetMoreTracks(stationId string) ([]pandora.Track, error)
+	AddFeedback(trackToken string, isPositive bool) error
+	AddTired(trackToken string) error
 }
 
 type client struct {
@@ -205,6 +207,66 @@ func (c *client) GetMoreTracks(stationId string) ([]pandora.Track, error) {
 	}
 
 	return payload.Tracks, nil
+}
+
+func (c *client) AddFeedback(trackToken string, isPositive bool) error {
+	c.log.WithFields(logrus.Fields{
+		"track":      trackToken,
+		"isPositive": isPositive,
+	}).Debug("Adding Feedback")
+
+	resp, err := c.post("/v1/station/addFeedback", &AddFeedbackRequest{
+		TrackToken: trackToken,
+		IsPositive: isPositive,
+	})
+
+	if err != nil {
+		return fmt.Errorf("AddFeedback: %w", err)
+	}
+
+	defer mustClose(resp.Body)
+	if err := checkHttpCode(resp); err != nil {
+		return fmt.Errorf("AddFeedback: %w", err)
+	}
+
+	payload := AddFeedbackResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return fmt.Errorf("AddFeedback: read response: %w", err)
+	}
+
+	c.log.WithFields(logrus.Fields{
+		"trackToken": trackToken,
+		"feedbackId": payload.ID,
+		"isPositive": payload.IsPositive,
+	}).Debug("Feedback Added")
+
+	return nil
+}
+
+func (c *client) AddTired(trackToken string) error {
+	c.log.WithFields(logrus.Fields{
+		"track": trackToken,
+	}).Debug("Adding Tired Song")
+
+	resp, err := c.post("/v1/listener/addTiredSong", &AddTiredRequest{
+		TrackToken: trackToken,
+	})
+
+	if err != nil {
+		return fmt.Errorf("AddTired: %w", err)
+	}
+
+	defer mustClose(resp.Body)
+	if err := checkHttpCode(resp); err != nil {
+		return fmt.Errorf("AddTired: %w", err)
+	}
+
+	payload := AddTiredResponse{}
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return fmt.Errorf("AddTired: read response: %w", err)
+	}
+
+	return nil
 }
 
 func checkHttpCode(r *http.Response) error {

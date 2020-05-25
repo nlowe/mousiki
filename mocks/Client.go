@@ -12,6 +12,34 @@ type Client struct {
 	mock.Mock
 }
 
+// AddFeedback provides a mock function with given fields: trackToken, isPositive
+func (_m *Client) AddFeedback(trackToken string, isPositive bool) error {
+	ret := _m.Called(trackToken, isPositive)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, bool) error); ok {
+		r0 = rf(trackToken, isPositive)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// AddTired provides a mock function with given fields: trackToken
+func (_m *Client) AddTired(trackToken string) error {
+	ret := _m.Called(trackToken)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(trackToken)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // GetMoreTracks provides a mock function with given fields: stationId
 func (_m *Client) GetMoreTracks(stationId string) ([]pandora.Track, error) {
 	ret := _m.Called(stationId)

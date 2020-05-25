@@ -63,14 +63,18 @@ func testDataAPI() api.Client {
 	}
 
 	client.On("GetStations").Return(testStations, nil)
-	client.On("GetMoreTracks", mock.Anything).Return([]pandora.Track{
-		{
-			TrackToken: uuid.Must(uuid.NewRandom()).String(),
-			ArtistName: "Test Artist",
-			AlbumTitle: "Test Album",
-			SongTitle:  "Test Track",
-		},
+	client.On("GetMoreTracks", mock.Anything).Return(func(_ string) []pandora.Track {
+		return []pandora.Track{
+			{
+				TrackToken: uuid.Must(uuid.NewRandom()).String(),
+				ArtistName: "Test Artist",
+				AlbumTitle: "Test Album",
+				SongTitle:  fmt.Sprintf("Test Track %s", uuid.Must(uuid.NewRandom())),
+			},
+		}
 	}, nil)
+	client.On("AddFeedback", mock.Anything, mock.Anything).Return(nil)
+	client.On("AddTired", mock.Anything).Return(nil)
 
 	return client
 }

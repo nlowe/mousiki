@@ -23,11 +23,11 @@ type StationController struct {
 	pandora     api.Client
 	player      audio.Player
 
-	playing pandora.Track
+	playing *pandora.Track
 	queue   []pandora.Track
 
 	skip           chan struct{}
-	notifications  chan pandora.Track
+	notifications  chan *pandora.Track
 	stationChanged chan pandora.Station
 
 	log logrus.FieldLogger
@@ -39,7 +39,7 @@ func NewStationController(c api.Client, p audio.Player) *StationController {
 		player:  p,
 		station: noStationSelected,
 
-		notifications:  make(chan pandora.Track, 1),
+		notifications:  make(chan *pandora.Track, 1),
 		stationChanged: make(chan pandora.Station, 1),
 
 		log: logrus.WithFields(logrus.Fields{
@@ -71,7 +71,7 @@ func (s *StationController) Play(ctx context.Context) {
 			s.queue = append(s.queue, tracks...)
 		}
 
-		s.playing, s.queue = s.queue[0], s.queue[1:]
+		s.playing, s.queue = &s.queue[0], s.queue[1:]
 
 		s.log.WithField("track", s.playing.String()).Info("Playing new track")
 		select {
@@ -101,8 +101,56 @@ func (s *StationController) Skip() {
 	}
 }
 
-func (s *StationController) NowPlaying() pandora.Track {
+func (s *StationController) NowPlaying() *pandora.Track {
 	return s.playing
+}
+
+// TODO: There are endpoints listed for removing feedback, but they're not documented
+func (s *StationController) ProvideFeedback(f pandora.TrackRating) error {
+	s.stationLock.Lock()
+	defer s.stationLock.Unlock()
+
+	log := s.log.WithField("track", s.playing)
+
+	if s.playing.Rating == f {
+		log.Warn("Not adding duplicate feedback")
+		return nil
+	}
+
+	if f == pandora.TrackRatingTired {
+		log.Info("Temporarily timing-out song")
+		err := s.pandora.AddTired(s.playing.TrackToken)
+
+		if err == nil {
+			// TODO: The UI does not currently differentiate between banned and tired songs
+			s.playing.Rating = pandora.TrackRatingBan
+			select {
+			case s.skip <- struct{}{}:
+			}
+		}
+
+		return err
+	} else {
+		positive := true
+		if f == pandora.TrackRatingBan {
+			log.Info("Banning song")
+			positive = false
+		} else {
+			log.Info("Loving song")
+		}
+
+		err := s.pandora.AddFeedback(s.playing.TrackToken, positive)
+		if err == nil {
+			s.playing.Rating = f
+			if !positive {
+				select {
+				case s.skip <- struct{}{}:
+				}
+			}
+		}
+
+		return err
+	}
 }
 
 func (s *StationController) UpNext() []pandora.Track {
@@ -152,6 +200,6 @@ func (s *StationController) CurrentStation() pandora.Station {
 	return s.station
 }
 
-func (s *StationController) NotificationChan() <-chan pandora.Track {
+func (s *StationController) NotificationChan() <-chan *pandora.Track {
 	return s.notifications
 }

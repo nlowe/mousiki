@@ -15,6 +15,9 @@ const (
 	TrackRatingNeutral = 0
 	TrackRatingLike    = 1
 	TrackRatingBan     = -1
+
+	// TODO: What is the correct term for temp banning a track?
+	TrackRatingTired = 999
 )
 
 type Track struct {

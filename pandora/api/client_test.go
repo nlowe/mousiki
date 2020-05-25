@@ -190,3 +190,70 @@ func TestClient_GetMoreTracks(t *testing.T) {
 		require.EqualError(t, err, "GetMoreTracks: post: not logged in")
 	})
 }
+
+func TestClient_AddFeedback(t *testing.T) {
+	trackToken := uuid.Must(uuid.NewRandom()).String()
+
+	t.Run("Valid", func(t *testing.T) {
+		authToken := uuid.Must(uuid.NewRandom()).String()
+
+		m := http.NewServeMux()
+		expectLogin(t, m, authToken)
+		m.HandleFunc("/api/v1/station/addFeedback", func(w http.ResponseWriter, r *http.Request) {
+			v := AddFeedbackRequest{}
+			testutil.UnmarshalRequest(t, r, &v)
+
+			assert.Equal(t, trackToken, v.TrackToken)
+			assert.True(t, v.IsPositive)
+
+			testutil.MarshalResponse(t, http.StatusOK, w, &AddFeedbackResponse{})
+		})
+
+		sut, server, _ := setupClientTest(t, m, authToken)
+		defer server.Close()
+
+		require.NoError(t, sut.Login("un", "pw"))
+		require.NoError(t, sut.AddFeedback(trackToken, true))
+	})
+
+	t.Run("RequiresLogin", func(t *testing.T) {
+		sut, server, _ := setupClientTest(t, http.NewServeMux(), uuid.Must(uuid.NewRandom()).String())
+		defer server.Close()
+
+		err := sut.AddFeedback(trackToken, true)
+		require.EqualError(t, err, "AddFeedback: post: not logged in")
+	})
+}
+
+func TestClient_AddTired(t *testing.T) {
+	trackToken := uuid.Must(uuid.NewRandom()).String()
+
+	t.Run("Valid", func(t *testing.T) {
+		authToken := uuid.Must(uuid.NewRandom()).String()
+
+		m := http.NewServeMux()
+		expectLogin(t, m, authToken)
+		m.HandleFunc("/api/v1/listener/addTiredSong", func(w http.ResponseWriter, r *http.Request) {
+			v := AddTiredRequest{}
+			testutil.UnmarshalRequest(t, r, &v)
+
+			assert.Equal(t, trackToken, v.TrackToken)
+
+			testutil.MarshalResponse(t, http.StatusOK, w, &AddFeedbackResponse{})
+		})
+
+		sut, server, _ := setupClientTest(t, m, authToken)
+		defer server.Close()
+
+		require.NoError(t, sut.Login("un", "pw"))
+		require.NoError(t, sut.AddTired(trackToken))
+	})
+
+	t.Run("RequiresLogin", func(t *testing.T) {
+		sut, server, _ := setupClientTest(t, http.NewServeMux(), uuid.Must(uuid.NewRandom()).String())
+		defer server.Close()
+
+		err := sut.AddTired(trackToken)
+		require.EqualError(t, err, "AddTired: post: not logged in")
+	})
+}

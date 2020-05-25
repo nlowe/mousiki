@@ -28,6 +28,10 @@ some tracks for the station and begin playback.
 | --- | ------ |
 | `N` | Skip to the next track (or fetch more tracks if the queue is empty |
 | `<space>` | Pause / Resume playback |
+| `+` | Love Song |
+| `-` | Ban Song |
+| `t` | Tired of Song |
+| `esc` | Station Picker |
 | `Q` / `Ctrl+C` | Quit |
 
 ## TODO
@@ -35,8 +39,7 @@ some tracks for the station and begin playback.
 In no particular order:
 
 * Publish binaries to GitHub
-* Station Selection
-* Feedback Management (Thumbs Up/Down tracks) for both the current track and recently played tracks
+* Feedback Management (Thumbs Up/Down tracks) for recently played tracks
 * Skip ads / artist messages automatically
 * Audio quality selection / Support for premium qualities
 

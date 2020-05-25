@@ -12,19 +12,19 @@ var ratingColors = map[pandora.TrackRating]string{
 	pandora.TrackRatingBan:     "red",
 }
 
-func FormatTrackTitle(t pandora.Track) string {
+func FormatTrackTitle(t *pandora.Track) string {
 	return fmt.Sprintf("[%s]%s[-]", ratingColors[t.Rating], t.SongTitle)
 }
 
-func FormatTrackArtist(t pandora.Track) string {
+func FormatTrackArtist(t *pandora.Track) string {
 	return fmt.Sprintf("[blue]%s[-]", t.ArtistName)
 }
 
-func FormatTrackAlbum(t pandora.Track) string {
+func FormatTrackAlbum(t *pandora.Track) string {
 	return fmt.Sprintf("[orange]%s[-]", t.AlbumTitle)
 }
 
-func FormatTrack(t pandora.Track, s pandora.Station) string {
+func FormatTrack(t *pandora.Track, s pandora.Station) string {
 	return fmt.Sprintf(
 		"%s - %s - %s on [darkcyan]%s[-]",
 		FormatTrackTitle(t),
