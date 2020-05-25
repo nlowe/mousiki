@@ -17,6 +17,8 @@ import (
 	"gitlab.com/tslocum/cview"
 )
 
+const pageMain = "main"
+
 type mainWindow struct {
 	*cview.Pages
 
@@ -27,6 +29,8 @@ type mainWindow struct {
 	nowPlayingArtist  *cview.TextView
 	nowPlayingAlbum   *cview.TextView
 	nowPlayingWrapper *cview.Grid
+
+	shortcuts *cview.Grid
 
 	progress     *cview.ProgressBar
 	progressText *cview.TextView
@@ -58,11 +62,14 @@ func MainWindow(cancelFunc func(), player audio.Player, controller *mousiki.Stat
 		nowPlayingArtist: cview.NewTextView().SetDynamicColors(true),
 		nowPlayingAlbum:  cview.NewTextView().SetDynamicColors(true),
 
+		shortcuts: cview.NewGrid().SetRows(-1).
+			SetColumns(-1, -1, 25, -1, -1, -1, -1),
+
 		progress:     cview.NewProgressBar(),
 		progressText: cview.NewTextView().SetTextAlign(cview.AlignRight),
 
-		history: cview.NewTextView().SetDynamicColors(true),
-		upNext:  cview.NewTextView().SetDynamicColors(true),
+		history: cview.NewTextView().SetDynamicColors(true).SetWordWrap(true),
+		upNext:  cview.NewTextView().SetDynamicColors(true).SetWordWrap(true),
 
 		player:     player,
 		controller: controller,
@@ -75,7 +82,7 @@ func MainWindow(cancelFunc func(), player audio.Player, controller *mousiki.Stat
 
 	grid := cview.NewGrid()
 
-	root.AddPage("main", grid, true, true)
+	root.AddPage(pageMain, grid, true, true)
 	root.stationPicker = NewStationPickerForPager(cancelFunc, root.Pages, controller)
 
 	root.history.ScrollToEnd().
@@ -123,12 +130,33 @@ func MainWindow(cancelFunc func(), player audio.Player, controller *mousiki.Stat
 		AddItem(root.nowPlayingWrapper, 1, 0, 1, 1, 0, 0, false).
 		AddItem(root.upNext, 2, 0, 1, 1, 0, 0, false)
 
-	grid.SetRows(-10, -2).
+	grid.SetRows(-10, -2, 1).
 		SetColumns(-1).
 		AddItem(stationView, 0, 0, 1, 1, 0, 0, false).
-		AddItem(logView, 1, 0, 1, 1, 0, 0, false)
+		AddItem(logView, 1, 0, 1, 1, 0, 0, false).
+		AddItem(root.shortcuts, 2, 0, 1, 1, 0, 0, false)
+
+	root.Pages.SetChangedFunc(root.updateShortcuts)
 
 	return root
+}
+
+func (w *mainWindow) updateShortcuts() {
+	w.shortcuts.Clear()
+
+	page, _ := w.Pages.GetFrontPage()
+	if page == "main" {
+		w.shortcuts.AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[Q] Quit"), 0, 0, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[ESC] Stations"), 0, 1, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[Space] Play / Pause"), 0, 2, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[N] Next"), 0, 3, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[-] Ban Song"), 0, 4, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[T] Tired Of Song"), 0, 5, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[+] Love Song"), 0, 6, 1, 1, 0, 0, false)
+	} else if page == stationPickerPageName {
+		w.shortcuts.AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[Q/ESC] Quit"), 0, 0, 1, 2, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[Space/Enter] Change Station"), 0, 2, 1, 2, 0, 0, false)
+	}
 }
 
 func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) *tcell.EventKey {
@@ -242,14 +270,16 @@ func (w *mainWindow) updateNowPlaying(app *cview.Application, t *pandora.Track) 
 }
 
 func (w *mainWindow) updateUpNext(app *cview.Application) {
-	station := w.controller.CurrentStation()
+	app.QueueUpdateDraw(func() {
+		station := w.controller.CurrentStation()
 
-	w.upNext.Clear()
-	buff := bufio.NewWriter(w.upNext)
-	for _, t := range w.controller.UpNext() {
-		_, _ = buff.WriteString(FormatTrack(&t, station) + "\n")
-	}
-	_ = buff.Flush()
+		w.upNext.Clear()
+		buff := bufio.NewWriter(w.upNext)
+		for _, t := range w.controller.UpNext() {
+			_, _ = buff.WriteString(FormatTrack(&t, station) + "\n")
+		}
+		_ = buff.Flush()
+	})
 }
 
 func (w *mainWindow) Write(p []byte) (n int, err error) {
