@@ -34,12 +34,20 @@ var uiTestCmd = &cobra.Command{
 		doneChan := make(chan error, 1)
 		var doneChanW <-chan error = doneChan
 
+		playing := true
+
 		player := &mocks.Player{}
-		player.On("IsPlaying").Return(true)
+		player.On("IsPlaying").Return(func() bool {
+			return playing
+		})
 		player.On("ProgressChan").Return(testProgressW)
 		player.On("DoneChan").Return(doneChanW)
-		player.On("Pause").Return()
-		player.On("Play").Return()
+		player.On("Pause").Run(func(_ mock.Arguments) {
+			playing = false
+		}).Return()
+		player.On("Play").Run(func(_ mock.Arguments) {
+			playing = true
+		}).Return()
 		player.On("UpdateStream", mock.Anything, mock.Anything).Return()
 
 		ctx, cancel := context.WithCancel(context.TODO())

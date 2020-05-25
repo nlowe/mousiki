@@ -8,6 +8,7 @@ import (
 	"math"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gdamore/tcell"
 	"github.com/nlowe/mousiki/audio"
@@ -168,8 +169,16 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 		if ev.Key() == tcell.KeyRune && ev.Rune() == ' ' {
 			if w.player.IsPlaying() {
 				w.player.Pause()
+				app.QueueUpdateDraw(func() {
+					w.nowPlayingWrapper.SetBorderColor(tcell.ColorDarkRed)
+					w.progress.SetFilledColor(tcell.ColorDimGray)
+				})
 			} else {
 				w.player.Play()
+				app.QueueUpdateDraw(func() {
+					w.nowPlayingWrapper.SetBorderColor(tcell.ColorWhite)
+					w.progress.SetFilledColor(tcell.ColorWhite)
+				})
 			}
 		} else if ev.Key() == tcell.KeyF5 {
 			w.log.Warn("Forcing re-draw")
@@ -213,21 +222,11 @@ func (w *mainWindow) ShowStationPicker() {
 func (w *mainWindow) SyncData(ctx context.Context, app *cview.Application) {
 	progress := w.player.ProgressChan()
 	next := w.controller.NotificationChan()
+	kickstart := sync.Once{}
+	stationChanged := w.controller.StationChanged()
+	pauseTicker := time.Tick(time.Second / 2)
 
-	go func() {
-		kickstart := sync.Once{}
-
-		for {
-			station := <-w.controller.StationChanged()
-			w.nowPlayingWrapper.SetTitle(fmt.Sprintf(" Now Playing - %s ", station.Name))
-			kickstart.Do(func() {
-				w.stationPicker.EscapeAction = EscapeActionHide
-				// Set the controller to playing after the first station is selected
-				go w.controller.Play(ctx)
-			})
-		}
-	}()
-
+	pauseColor := tcell.ColorDarkRed
 	for {
 		select {
 		case <-w.quitRequested:
@@ -241,6 +240,29 @@ func (w *mainWindow) SyncData(ctx context.Context, app *cview.Application) {
 		case t := <-next:
 			w.updateNowPlaying(app, t)
 			w.updateUpNext(app)
+		case station := <-stationChanged:
+			w.nowPlayingWrapper.SetTitle(fmt.Sprintf(" Now Playing - %s ", station.Name))
+			kickstart.Do(func() {
+				w.stationPicker.EscapeAction = EscapeActionHide
+				// Set the controller to playing after the first station is selected
+				go w.controller.Play(ctx)
+			})
+		case <-pauseTicker:
+			if !w.player.IsPlaying() {
+				app.QueueUpdateDraw(func() {
+					w.nowPlayingWrapper.SetBorderColor(pauseColor)
+				})
+
+				if pauseColor == tcell.ColorDarkRed {
+					pauseColor = tcell.ColorWhite
+				} else {
+					pauseColor = tcell.ColorDarkRed
+				}
+			} else {
+				app.QueueUpdateDraw(func() {
+					w.nowPlayingWrapper.SetBorderColor(tcell.ColorWhite)
+				})
+			}
 		}
 	}
 }
