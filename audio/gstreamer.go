@@ -2,16 +2,12 @@ package audio
 
 import (
 	"fmt"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/notedit/gst"
 	"github.com/sirupsen/logrus"
 )
-
-var playbackRegex = regexp.MustCompile(`.*current=\(gint64\)(\d+), total=\(gint64\)(\d+),.*`)
 
 type gstreamerPlayer struct {
 	pipeline *gst.Pipeline
@@ -38,14 +34,6 @@ func NewGstreamerPipeline() (*gstreamerPlayer, error) {
 		return nil, err
 	}
 
-	progress, err := gst.ElementFactoryMake("progressreport", "progress")
-	if err != nil {
-		return nil, err
-	}
-
-	progress.SetObject("update-freq", 1)
-	progress.SetObject("silent", true)
-
 	convert, err := gst.ElementFactoryMake("audioconvert", "convert")
 	if err != nil {
 		return nil, err
@@ -66,8 +54,7 @@ func NewGstreamerPipeline() (*gstreamerPlayer, error) {
 		return nil, err
 	}
 
-	result.pipeline.AddMany(progress, convert, result.volume, resample, sink)
-	progress.Link(convert)
+	result.pipeline.AddMany(convert, result.volume, resample, sink)
 	convert.Link(result.volume)
 	result.volume.Link(resample)
 	resample.Link(sink)
@@ -86,18 +73,6 @@ func NewGstreamerPipeline() (*gstreamerPlayer, error) {
 			case gst.MessageElement:
 				data := msg.GetStructure().ToString()
 				result.log.WithField("msg", data).Debug("Got message")
-
-				if strings.HasPrefix(data, "progress") {
-					hackyParser := playbackRegex.FindStringSubmatch(data)
-					current, _ := strconv.Atoi(hackyParser[1])
-					duration, _ := strconv.Atoi(hackyParser[2])
-
-					// TODO: Is this always in seconds?
-					result.progress <- PlaybackProgress{
-						Progress: time.Duration(current) * time.Second,
-						Duration: time.Duration(duration) * time.Second,
-					}
-				}
 			}
 		}
 	}()
@@ -117,12 +92,37 @@ func (g *gstreamerPlayer) setupInitialSource(url string) error {
 		g.log.Debug("Source Pad Callback Called")
 		if strings.HasPrefix(p.GetCurrentCaps().ToString(), "audio") {
 			g.log.Debug("Source Audio Pad added")
-			sinkpad := g.pipeline.GetByName("progress").GetStaticPad("sink")
+			sinkpad := g.pipeline.GetByName("convert").GetStaticPad("sink")
 			p.Link(sinkpad)
 		}
 	})
 
 	g.pipeline.Add(g.src)
+
+	// TODO: Stop this goroutine when we close the player
+	go func() {
+		for range time.Tick(time.Second) {
+			var result PlaybackProgress
+
+			result.Progress, err = g.src.QueryPosition()
+			if err != nil {
+				g.log.WithError(err).Error("Failed to provide playback progress")
+				continue
+			}
+
+			result.Duration, err = g.src.QueryDuration()
+			if err != nil {
+				g.log.WithError(err).Error("Failed to provide playback progress")
+				continue
+			}
+
+			select {
+			case g.progress <- result:
+			default:
+				g.log.Warn("progress channel blocked upstream")
+			}
+		}
+	}()
 
 	return nil
 }
