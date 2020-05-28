@@ -56,15 +56,21 @@ func NewGstreamerPipeline() (*gstreamerPlayer, error) {
 		return nil, err
 	}
 
+	resample, err := gst.ElementFactoryMake("audioresample", "resample")
+	if err != nil {
+		return nil, err
+	}
+
 	sink, err := gst.ElementFactoryMake("autoaudiosink", "sink")
 	if err != nil {
 		return nil, err
 	}
 
-	result.pipeline.AddMany(progress, convert, result.volume, sink)
+	result.pipeline.AddMany(progress, convert, result.volume, resample, sink)
 	progress.Link(convert)
 	convert.Link(result.volume)
-	result.volume.Link(sink)
+	result.volume.Link(resample)
+	resample.Link(sink)
 
 	// TODO: Stop this goroutine when we close the player
 	go func() {
