@@ -60,7 +60,7 @@ func (s *StationController) Play(ctx context.Context) {
 	for {
 		// TODO: Configure prefetch limit?
 		s.stationLock.Lock()
-		if len(s.queue) == 0 {
+		if len(s.queue) <= 1 {
 			s.log.Info("Fetching more tracks")
 			tracks, err := s.pandora.GetMoreTracks(s.station.ID)
 			if err != nil {
