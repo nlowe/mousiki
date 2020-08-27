@@ -2,6 +2,7 @@ package audio
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -9,14 +10,17 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const structCacheDownloadComplete = "GstCacheDownloadComplete"
+
 type gstreamerPlayer struct {
 	pipeline *gst.Pipeline
 	src      *gst.Element
 	volume   *gst.Element
 
-	playing  bool
-	progress chan PlaybackProgress
-	done     chan error
+	playing   bool
+	progress  chan PlaybackProgress
+	done      chan error
+	cachePath string
 
 	log logrus.FieldLogger
 }
@@ -63,7 +67,7 @@ func NewGstreamerPipeline() (*gstreamerPlayer, error) {
 	go func() {
 		bus := result.pipeline.GetBus()
 		for {
-			msg := bus.Pull(gst.MessageEos | gst.MessageError | gst.MessageElement)
+			msg := bus.Pull(gst.MessageEos | gst.MessageError | gst.MessageElement | gst.MessageBuffering)
 
 			switch msg.GetType() {
 			case gst.MessageEos:
@@ -71,8 +75,32 @@ func NewGstreamerPipeline() (*gstreamerPlayer, error) {
 			case gst.MessageError:
 				result.done <- fmt.Errorf("error during playback: %s: %s", msg.GetName(), msg.GetStructure().ToString())
 			case gst.MessageElement:
-				data := msg.GetStructure().ToString()
-				result.log.WithField("msg", data).Debug("Got message")
+				data := msg.GetStructure()
+
+				result.log.WithFields(logrus.Fields{
+					"name": data.GetName(),
+					"msg":  data.ToString(),
+				}).Trace("Got message")
+
+				if data.GetName() == structCacheDownloadComplete {
+					result.cachePath, _ = data.GetString("location")
+					result.log.WithField("location", result.cachePath).Debug("Buffering Complete")
+				}
+			case gst.MessageBuffering:
+				data := msg.GetStructure()
+				percent, err := data.GetInt("buffer-percent")
+				if err != nil {
+					result.log.WithError(err).Error("Failed to fetch buffer percent")
+					continue
+				}
+
+				result.log.WithField("percent", percent).Debug("Buffering")
+				if percent != 100 && result.IsPlaying() {
+					result.Pause()
+				} else if percent == 100 {
+					result.log.Debug("Buffering Complete")
+					result.Play()
+				}
 			}
 		}
 	}()
@@ -87,6 +115,10 @@ func (g *gstreamerPlayer) setupInitialSource(url string) error {
 		return err
 	}
 	g.src.SetObject("uri", url)
+
+	// TODO: Do we need to tune the buffer at all?
+	g.src.SetObject("use-buffering", true)
+	g.src.SetObject("download", true)
 
 	g.src.SetPadAddedCallback(func(e *gst.Element, p *gst.Pad) {
 		g.log.Debug("Source Pad Callback Called")
@@ -133,7 +165,20 @@ func (g *gstreamerPlayer) Close() error {
 	g.playing = false
 	close(g.done)
 	close(g.progress)
-	return nil
+
+	return g.cleanCache()
+}
+
+func (g *gstreamerPlayer) cleanCache() error {
+	if g.cachePath == "" {
+		return nil
+	}
+
+	g.log.WithField("path", g.cachePath).Debug("Removing cached file")
+	err := os.Remove(g.cachePath)
+
+	g.cachePath = ""
+	return err
 }
 
 func (g *gstreamerPlayer) UpdateStream(url string, volumeAdjustment float64) {
@@ -145,6 +190,9 @@ func (g *gstreamerPlayer) UpdateStream(url string, volumeAdjustment float64) {
 	}).Debug("Updating Stream")
 	g.playing = false
 	g.pipeline.SetState(gst.StateNull)
+	if err := g.cleanCache(); err != nil {
+		g.log.WithError(err).Warn("Failed to clean previously cached track")
+	}
 
 	g.volume.SetObject("volume", percentGain)
 

@@ -3,6 +3,7 @@ package audiotest
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,10 +12,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/spf13/viper"
-
+	"github.com/andrewstuart/limio"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var serverCmd = &cobra.Command{
@@ -24,6 +25,7 @@ var serverCmd = &cobra.Command{
 	Example: "mousiki audiotest server test.aac",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(_ *cobra.Command, args []string) error {
+		throttleLimit := viper.GetInt("kbps")
 		log := logrus.WithFields(logrus.Fields{
 			"file":   args[0],
 			"prefix": "server",
@@ -54,13 +56,20 @@ var serverCmd = &cobra.Command{
 				w.WriteHeader(http.StatusOK)
 
 				if r.Method != http.MethodHead {
-					_, _ = io.Copy(w, bytes.NewReader(stream))
+					throttle := limio.NewReader(bytes.NewReader(stream))
+					throttle.SimpleLimit(throttleLimit*limio.KB, time.Second)
+
+					_, _ = io.Copy(w, throttle)
+					log.Info("Streaming Complete")
 				}
 			}),
 		}
 
 		go func() {
-			log.WithField("endpoint", "http://localhost:5000/stream").Info("Streaming")
+			log.WithFields(logrus.Fields{
+				"endpoint": "http://localhost:5000/stream",
+				"throttle": fmt.Sprintf("%dKB/s", throttleLimit),
+			}).Info("Streaming")
 			if err := s.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				log.WithError(err).Fatal("Error serving requests")
 			}
@@ -84,5 +93,6 @@ func init() {
 
 	flags := serverCmd.PersistentFlags()
 	flags.String("content-type", "audio/mp4", "The content type to set when streaming")
+	flags.Int("kbps", 1024, "Throttle downloads to this rate, in KB/s (default: 1MB/s or 1024KB/s)")
 	_ = viper.BindPFlags(flags)
 }
