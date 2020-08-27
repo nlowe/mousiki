@@ -2,7 +2,7 @@ module github.com/nlowe/mousiki
 
 go 1.14
 
-replace github.com/notedit/gst => github.com/nlowe/gst v0.0.0-20200827063746-5b3add2d650f
+replace github.com/notedit/gst => github.com/nlowe/gst v0.0.0-20200827072341-8f75797c5b66
 
 require (
 	github.com/andrewstuart/limio v0.0.0-20180925070603-17c081b6f2f5

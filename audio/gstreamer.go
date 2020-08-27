@@ -10,7 +10,10 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const structCacheDownloadComplete = "GstCacheDownloadComplete"
+const (
+	structCacheDownloadComplete = "GstCacheDownloadComplete"
+	structProgress              = "progress"
+)
 
 type gstreamerPlayer struct {
 	pipeline *gst.Pipeline
@@ -53,59 +56,89 @@ func NewGstreamerPipeline() (*gstreamerPlayer, error) {
 		return nil, err
 	}
 
+	progress, err := gst.ElementFactoryMake("progressreport", "progress")
+	if err != nil {
+		return nil, err
+	}
+
+	progress.SetObject("update-freq", 1)
+	progress.SetObject("silent", true)
+
 	sink, err := gst.ElementFactoryMake("autoaudiosink", "sink")
 	if err != nil {
 		return nil, err
 	}
 
-	result.pipeline.AddMany(convert, result.volume, resample, sink)
+	result.pipeline.AddMany(convert, result.volume, resample, progress, sink)
 	convert.Link(result.volume)
 	result.volume.Link(resample)
-	resample.Link(sink)
+	resample.Link(progress)
+	progress.Link(sink)
 
 	// TODO: Stop this goroutine when we close the player
-	go func() {
-		bus := result.pipeline.GetBus()
-		for {
-			msg := bus.Pull(gst.MessageEos | gst.MessageError | gst.MessageElement | gst.MessageBuffering)
+	go result.processBusMessages()
 
-			switch msg.GetType() {
-			case gst.MessageEos:
-				result.done <- nil
-			case gst.MessageError:
-				result.done <- fmt.Errorf("error during playback: %s: %s", msg.GetName(), msg.GetStructure().ToString())
-			case gst.MessageElement:
-				data := msg.GetStructure()
+	return result, nil
+}
 
-				result.log.WithFields(logrus.Fields{
-					"name": data.GetName(),
-					"msg":  data.ToString(),
-				}).Trace("Got message")
+func (g *gstreamerPlayer) processBusMessages() {
+	bus := g.pipeline.GetBus()
+	for {
+		msg := bus.Pull(gst.MessageEos | gst.MessageError | gst.MessageElement | gst.MessageBuffering)
 
-				if data.GetName() == structCacheDownloadComplete {
-					result.cachePath, _ = data.GetString("location")
-					result.log.WithField("location", result.cachePath).Debug("Buffering Complete")
-				}
-			case gst.MessageBuffering:
-				data := msg.GetStructure()
-				percent, err := data.GetInt("buffer-percent")
+		switch msg.GetType() {
+		case gst.MessageEos:
+			g.done <- nil
+		case gst.MessageError:
+			g.done <- fmt.Errorf("error during playback: %s: %s", msg.GetName(), msg.GetStructure().ToString())
+		case gst.MessageElement:
+			data := msg.GetStructure()
+
+			g.log.WithFields(logrus.Fields{
+				"name": data.GetName(),
+				"msg":  data.ToString(),
+			}).Trace("Got message")
+
+			messageType := data.GetName()
+
+			if messageType == structCacheDownloadComplete {
+				g.cachePath, _ = data.GetString("location")
+				g.log.WithField("location", g.cachePath).Debug("Buffering Complete")
+			} else if messageType == structProgress {
+				current, err := data.GetInt64("current")
 				if err != nil {
-					result.log.WithError(err).Error("Failed to fetch buffer percent")
+					g.log.WithError(err).Error("Failed to fetch current progress")
 					continue
 				}
 
-				result.log.WithField("percent", percent).Debug("Buffering")
-				if percent != 100 && result.IsPlaying() {
-					result.Pause()
-				} else if percent == 100 {
-					result.log.Debug("Buffering Complete")
-					result.Play()
+				total, err := data.GetInt64("total")
+				if err != nil {
+					g.log.WithError(err).Error("Failed to fetch total progress")
+					continue
+				}
+
+				g.progress <- PlaybackProgress{
+					Duration: time.Duration(total) * time.Second,
+					Progress: time.Duration(current) * time.Second,
 				}
 			}
-		}
-	}()
+		case gst.MessageBuffering:
+			data := msg.GetStructure()
+			percent, err := data.GetInt("buffer-percent")
+			if err != nil {
+				g.log.WithError(err).Error("Failed to fetch buffer percent")
+				continue
+			}
 
-	return result, nil
+			g.log.WithField("percent", percent).Debug("Buffering")
+			if percent != 100 && g.IsPlaying() {
+				g.Pause()
+			} else if percent == 100 {
+				g.log.Debug("Buffering Complete")
+				g.Play()
+			}
+		}
+	}
 }
 
 func (g *gstreamerPlayer) setupInitialSource(url string) error {
@@ -130,31 +163,6 @@ func (g *gstreamerPlayer) setupInitialSource(url string) error {
 	})
 
 	g.pipeline.Add(g.src)
-
-	// TODO: Stop this goroutine when we close the player
-	go func() {
-		for range time.Tick(time.Second) {
-			var result PlaybackProgress
-
-			result.Progress, err = g.src.QueryPosition()
-			if err != nil {
-				g.log.WithError(err).Error("Failed to provide playback progress")
-				continue
-			}
-
-			result.Duration, err = g.src.QueryDuration()
-			if err != nil {
-				g.log.WithError(err).Error("Failed to provide playback progress")
-				continue
-			}
-
-			select {
-			case g.progress <- result:
-			default:
-				g.log.Warn("progress channel blocked upstream")
-			}
-		}
-	}()
 
 	return nil
 }
