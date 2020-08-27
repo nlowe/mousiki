@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -301,12 +300,12 @@ func (w *mainWindow) updateUpNext(app *cview.Application) {
 	app.QueueUpdateDraw(func() {
 		station := w.controller.CurrentStation()
 
-		w.upNext.Clear()
-		buff := bufio.NewWriter(w.upNext)
+		buff := strings.Builder{}
 		for _, t := range w.controller.UpNext() {
-			_, _ = buff.WriteString(FormatTrack(&t, station) + "\n")
+			_, _ = fmt.Fprintln(&buff, FormatTrack(&t, station))
 		}
-		_ = buff.Flush()
+
+		w.upNext.SetText(strings.TrimSpace(buff.String()))
 	})
 }
 
