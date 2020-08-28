@@ -17,6 +17,12 @@ var noStationSelected = pandora.Station{
 	Name: "No Station Selected",
 }
 
+type narrativeCache struct {
+	station   string
+	track     string
+	narrative pandora.Narrative
+}
+
 type StationController struct {
 	stationLock sync.Mutex
 	station     pandora.Station
@@ -30,7 +36,13 @@ type StationController struct {
 	notifications  chan *pandora.Track
 	stationChanged chan pandora.Station
 
+	narrativeCache narrativeCache
+
 	log logrus.FieldLogger
+}
+
+func (n narrativeCache) matches(t *pandora.Track) bool {
+	return n.station == t.StationId && n.track == t.MusicId
 }
 
 func NewStationController(c api.Client, p audio.Player) *StationController {
@@ -190,6 +202,25 @@ func (s *StationController) SwitchStations(station pandora.Station) {
 	})
 
 	s.stationChanged <- station
+}
+
+func (s *StationController) ExplainCurrentTrack() (pandora.Narrative, error) {
+	if s.narrativeCache.matches(s.playing) {
+		s.log.Debug("Returning Cached Narrative")
+		return s.narrativeCache.narrative, nil
+	}
+
+	s.log.Debug("Fetching Narrative")
+	result, err := s.pandora.GetNarrative(s.playing.StationId, s.playing.MusicId)
+	if err == nil {
+		s.narrativeCache = narrativeCache{
+			station:   s.playing.StationId,
+			track:     s.playing.MusicId,
+			narrative: result,
+		}
+	}
+
+	return result, err
 }
 
 func (s *StationController) StationChanged() <-chan pandora.Station {

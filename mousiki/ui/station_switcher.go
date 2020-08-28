@@ -38,12 +38,11 @@ func NewStationPickerForPager(cancelFunc func(), pager *cview.Pages, controller 
 		controller: controller,
 		pager:      pager,
 
-		log: logrus.WithField("prefix", "stationPicker"),
+		log: logrus.WithField("prefix", stationPickerPageName),
 	}
 
 	root.list.ShowSecondaryText(false).
 		SetTitle(" Select Station ").
-		SetBorder(true).
 		SetBorder(true)
 
 	root.CenteredModal = NewCenteredModal(root.list)

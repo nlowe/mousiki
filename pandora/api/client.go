@@ -29,6 +29,7 @@ type Client interface {
 	GetMoreTracks(stationId string) ([]pandora.Track, error)
 	AddFeedback(trackToken string, isPositive bool) error
 	AddTired(trackToken string) error
+	GetNarrative(stationId, musicId string) (pandora.Narrative, error)
 }
 
 type client struct {
@@ -267,6 +268,30 @@ func (c *client) AddTired(trackToken string) error {
 	}
 
 	return nil
+}
+
+func (c *client) GetNarrative(stationId, musicId string) (pandora.Narrative, error) {
+	c.log.WithFields(logrus.Fields{
+		"station": stationId,
+		"track":   musicId,
+	}).Debug("Getting Narrative")
+
+	resp, err := c.post("/v1/playlist/narrative", &NarrativeRequest{
+		MusicID:   musicId,
+		StationID: stationId,
+	})
+
+	if err != nil {
+		return pandora.Narrative{}, fmt.Errorf("GetNarrative: %w", err)
+	}
+
+	defer mustClose(resp.Body)
+	if err := checkHttpCode(resp); err != nil {
+		return pandora.Narrative{}, fmt.Errorf("GetNarrative: read response: %w", err)
+	}
+
+	var payload pandora.Narrative
+	return payload, json.NewDecoder(resp.Body).Decode(&payload)
 }
 
 func checkHttpCode(r *http.Response) error {

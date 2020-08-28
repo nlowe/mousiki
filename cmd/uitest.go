@@ -74,6 +74,8 @@ func testDataAPI() api.Client {
 	client.On("GetMoreTracks", mock.Anything).Return(func(_ string) []pandora.Track {
 		return []pandora.Track{
 			{
+				StationId:  uuid.Must(uuid.NewRandom()).String(),
+				MusicId:    uuid.Must(uuid.NewRandom()).String(),
 				TrackToken: uuid.Must(uuid.NewRandom()).String(),
 				ArtistName: "Test Artist",
 				AlbumTitle: "Test Album",
@@ -83,6 +85,17 @@ func testDataAPI() api.Client {
 	}, nil)
 	client.On("AddFeedback", mock.Anything, mock.Anything).Return(nil)
 	client.On("AddTired", mock.Anything).Return(nil)
+	client.On("GetNarrative", mock.Anything, mock.Anything).Return(pandora.Narrative{
+		Intro: "Based on what you've told us so far, we're playing this track because it features:",
+		FocusTraits: []string{
+			"vocal harmonies",
+			"mixed acoustic and electric instrumentation",
+			"minor key tonality",
+			"mild rhythmic syncopation",
+			"heavy electric rhythm guitars",
+		},
+		Paragraph: "Based on what you've told us so far, we're playing this track because it features vocal harmonies, mixed acoustic and electric instrumentation, minor key tonality, mild rhythmic syncopation and heavy electric rhythm guitars.",
+	}, nil)
 
 	return client
 }

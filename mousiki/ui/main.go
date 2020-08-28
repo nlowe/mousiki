@@ -22,7 +22,8 @@ const pageMain = "main"
 type mainWindow struct {
 	*cview.Pages
 
-	stationPicker *stationPicker
+	stationPicker  *stationPicker
+	narrativePopup *narrativePopup
 
 	nowPlaying        *pandora.Track
 	nowPlayingSong    *cview.TextView
@@ -84,6 +85,7 @@ func MainWindow(cancelFunc func(), player audio.Player, controller *mousiki.Stat
 
 	root.AddPage(pageMain, grid, true, true)
 	root.stationPicker = NewStationPickerForPager(cancelFunc, root.Pages, controller)
+	root.narrativePopup = NewNarrativePopupForPager(cancelFunc, root.Pages, controller)
 
 	root.history.ScrollToEnd().
 		SetDrawFunc(func(_ tcell.Screen, x, y, w, h int) (rx int, ry int, rw int, rh int) {
@@ -149,13 +151,16 @@ func (w *mainWindow) updateShortcuts() {
 		w.shortcuts.AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[Q] Quit"), 0, 0, 1, 1, 0, 0, false).
 			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[ESC] Stations"), 0, 1, 1, 1, 0, 0, false).
 			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[Space] Play / Pause"), 0, 2, 1, 1, 0, 0, false).
-			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[N] Next"), 0, 3, 1, 1, 0, 0, false).
-			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[-] Ban Song"), 0, 4, 1, 1, 0, 0, false).
-			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[T] Tired Of Song"), 0, 5, 1, 1, 0, 0, false).
-			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[+] Love Song"), 0, 6, 1, 1, 0, 0, false)
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[E] Explain"), 0, 3, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[N] Next"), 0, 4, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[-] Ban Song"), 0, 5, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[T] Tired Of Song"), 0, 6, 1, 1, 0, 0, false).
+			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[+] Love Song"), 0, 7, 1, 1, 0, 0, false)
 	} else if page == stationPickerPageName {
 		w.shortcuts.AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[Q/ESC] Quit"), 0, 0, 1, 2, 0, 0, false).
 			AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[Space/Enter] Change Station"), 0, 2, 1, 2, 0, 0, false)
+	} else if page == narrativePopupPageName {
+		w.shortcuts.AddItem(cview.NewTextView().SetTextAlign(cview.AlignCenter).SetWrap(false).SetText("[ESC/E] Close"), 0, 2, 1, 1, 0, 0, false)
 	}
 }
 
@@ -163,6 +168,8 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 	return func(ev *tcell.EventKey) *tcell.EventKey {
 		if page, _ := w.GetFrontPage(); page == stationPickerPageName {
 			return w.stationPicker.HandleKey(ev)
+		} else if page == narrativePopupPageName {
+			return w.narrativePopup.HandleKey(ev)
 		}
 
 		if ev.Key() == tcell.KeyRune && ev.Rune() == ' ' {
@@ -202,6 +209,8 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 			if err := w.controller.ProvideFeedback(pandora.TrackRatingBan); err != nil {
 				w.log.WithError(err).Error("Failed to add feedback")
 			}
+		} else if ev.Key() == tcell.KeyRune && ev.Rune() == 'e' {
+			w.ShowNarrativePopup()
 		} else {
 			return ev
 		}
@@ -210,12 +219,31 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 	}
 }
 
+func intClamp(n, low, high int) int {
+	if n < low {
+		return low
+	}
+
+	if n > high {
+		return high
+	}
+
+	return n
+}
+
 func (w *mainWindow) OnResize(width, height int) {
 	w.stationPicker.Resize(width/2, height/2)
+
+	// TODO: Can we grow this automatically based on explanation length?
+	w.narrativePopup.Resize(intClamp(width/2, 40, 120), intClamp(height/4, 10, 16))
 }
 
 func (w *mainWindow) ShowStationPicker() {
 	w.stationPicker.Open()
+}
+
+func (w *mainWindow) ShowNarrativePopup() {
+	w.narrativePopup.Open()
 }
 
 func (w *mainWindow) SyncData(ctx context.Context, app *cview.Application) {
