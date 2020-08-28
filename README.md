@@ -6,6 +6,13 @@ A command-line pandora client. Inspired by [PromyLOPh/pianobar](https://github.c
 
 ![](doc/mousiki.png)
 
+## Installation
+
+Right now you have to build from source. See [Building](#building).
+
+Mousiki relies on gstreamer-1.0 for audio playback. Install it from your package manager or from
+https://gstreamer.freedesktop.org/download/.
+
 ## Usage
 
 Start `mousiki` with the `--username` parameter, you will be prompted for
@@ -16,10 +23,6 @@ $ mousiki --username somebody@gmail.com
 Password:
 ```
 
-Right now `mousiki` is limited to playing the last station in the first page
-that pandora returns for us. This will be fixed later. `mousiki` will fetch
-some tracks for the station and begin playback.
-
 ### Transport Controls
 
 `mousiki` currently supports the following controls:
@@ -27,6 +30,7 @@ some tracks for the station and begin playback.
 | Key | Action |
 | --- | ------ |
 | `N` | Skip to the next track (or fetch more tracks if the queue is empty |
+| `E` | Explain why pandora picked the currently playing track |
 | `<space>` | Pause / Resume playback |
 | `+` | Love Song |
 | `-` | Ban Song |
