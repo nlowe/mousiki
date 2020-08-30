@@ -2,8 +2,6 @@ module github.com/nlowe/mousiki
 
 go 1.14
 
-replace github.com/notedit/gst => github.com/nlowe/gst v0.0.0-20200827072341-8f75797c5b66
-
 require (
 	github.com/andrewstuart/limio v0.0.0-20180925070603-17c081b6f2f5
 	github.com/cheggaaa/pb/v3 v3.0.4
@@ -17,7 +15,7 @@ require (
 	github.com/mattn/go-colorable v0.1.6
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
-	github.com/notedit/gst v0.0.4
+	github.com/notedit/gst v0.0.7
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/pelletier/go-toml v1.7.0 // indirect
