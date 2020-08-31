@@ -52,7 +52,7 @@ func TestStationController_Play(t *testing.T) {
 	p.On("UpdateStream", mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
 		url := args.String(0)
 		played = append(played, url)
-		assert.Equal(t, url, (<-sut.NotificationChan()).AudioUrl)
+		assert.Equal(t, url, (<-sut.NotificationChan()).Track.AudioUrl)
 
 		if len(played) == 3 {
 			cancel()

@@ -33,7 +33,7 @@ type StationController struct {
 	queue   []pandora.Track
 
 	skip           chan struct{}
-	notifications  chan *pandora.Track
+	notifications  chan MessageTrackChanged
 	stationChanged chan pandora.Station
 
 	narrativeCache narrativeCache
@@ -51,7 +51,7 @@ func NewStationController(c api.Client, p audio.Player) *StationController {
 		player:  p,
 		station: noStationSelected,
 
-		notifications:  make(chan *pandora.Track, 1),
+		notifications:  make(chan MessageTrackChanged, 1),
 		stationChanged: make(chan pandora.Station, 1),
 
 		log: logrus.WithFields(logrus.Fields{
@@ -87,7 +87,7 @@ func (s *StationController) Play(ctx context.Context) {
 
 		s.log.WithField("track", s.playing.String()).Info("Playing new track")
 		select {
-		case s.notifications <- s.playing:
+		case s.notifications <- MessageTrackChanged{Track: s.playing, Station: s.station}:
 		}
 		s.player.UpdateStream(s.playing.AudioUrl, s.playing.FileGain)
 		s.stationLock.Unlock()
@@ -231,6 +231,6 @@ func (s *StationController) CurrentStation() pandora.Station {
 	return s.station
 }
 
-func (s *StationController) NotificationChan() <-chan *pandora.Track {
+func (s *StationController) NotificationChan() <-chan MessageTrackChanged {
 	return s.notifications
 }

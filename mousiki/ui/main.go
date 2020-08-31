@@ -25,7 +25,7 @@ type mainWindow struct {
 	stationPicker  *stationPicker
 	narrativePopup *narrativePopup
 
-	nowPlaying        *pandora.Track
+	nowPlaying        mousiki.MessageTrackChanged
 	nowPlayingSong    *cview.TextView
 	nowPlayingArtist  *cview.TextView
 	nowPlayingAlbum   *cview.TextView
@@ -200,6 +200,7 @@ func (w *mainWindow) HandleKey(app *cview.Application) func(ev *tcell.EventKey) 
 				w.log.WithError(err).Error("Failed to add feedback")
 			}
 
+			// Update NowPlaying with the same message to pick up the feedback
 			w.updateNowPlaying(app, w.nowPlaying)
 		} else if ev.Key() == tcell.KeyRune && ev.Rune() == 't' {
 			if err := w.controller.ProvideFeedback(pandora.TrackRatingTired); err != nil {
@@ -308,19 +309,17 @@ func (w *mainWindow) updateProgress(app *cview.Application, p audio.PlaybackProg
 	})
 }
 
-func (w *mainWindow) updateNowPlaying(app *cview.Application, t *pandora.Track) {
+func (w *mainWindow) updateNowPlaying(app *cview.Application, m mousiki.MessageTrackChanged) {
 	app.QueueUpdateDraw(func() {
-		station := w.controller.CurrentStation()
+		w.nowPlayingSong.SetText(FormatTrackTitle(m.Track))
+		w.nowPlayingArtist.SetText(FormatTrackArtist(m.Track))
+		w.nowPlayingAlbum.SetText(FormatTrackAlbum(m.Track))
 
-		w.nowPlayingSong.SetText(FormatTrackTitle(t))
-		w.nowPlayingArtist.SetText(FormatTrackArtist(t))
-		w.nowPlayingAlbum.SetText(FormatTrackAlbum(t))
-
-		if w.nowPlaying != nil && w.nowPlaying != t {
-			_, _ = w.history.Write([]byte("\n" + FormatTrack(w.nowPlaying, station)))
+		if w.nowPlaying.Track != nil && w.nowPlaying.Track != m.Track {
+			_, _ = w.history.Write([]byte("\n" + FormatTrack(w.nowPlaying.Track, w.nowPlaying.Station)))
 		}
 
-		w.nowPlaying = t
+		w.nowPlaying = m
 	})
 }
 
