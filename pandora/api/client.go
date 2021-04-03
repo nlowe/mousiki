@@ -20,6 +20,7 @@ import (
 const (
 	csrfCookieName = "csrftoken"
 	pandoraBase    = "https://www.pandora.com"
+	userAgent      = "Mozilla/5.0 (X11; Datanyze; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.92 Safari/537.36"
 )
 
 // Client implements the Pandora REST API defined in https://6xq.net/pandora-apidoc/rest
@@ -72,7 +73,7 @@ func (c *client) updateCSRF() error {
 func (c *client) prepare(r *http.Request) error {
 	r.Header.Set("Content-Type", "application/json")
 	r.Header.Set("Accept", "application/json")
-	r.Header.Set("User-Agent", "Mozilla/5.0 (X11; Datanyze; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.92 Safari/537.36")
+	r.Header.Set("User-Agent", userAgent)
 
 	if c.authToken != "" {
 		r.Header.Set("X-AuthToken", c.authToken)

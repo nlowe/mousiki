@@ -10,8 +10,8 @@ A command-line pandora client. Inspired by [PromyLOPh/pianobar](https://github.c
 
 Right now you have to build from source. See [Building](#building).
 
-Mousiki relies on gstreamer-1.0 for audio playback. Install it from your package manager or from
-https://gstreamer.freedesktop.org/download/.
+Mousiki relies on FFmpeg for audio transcoding. Install it from your package manager or from
+https://ffmpeg.org/download.html.
 
 ## Usage
 
@@ -49,12 +49,12 @@ In no particular order:
 
 Maybe some day:
 
-* Pure-GO AAC Decoder to drop the CGO Dependency on gstreamer (or figure out how to get pandora to send us MP3 streams)
+* FFmpeg streaming. Right now we have to transcode the entire track before `github.com/faiface/beep/wav` will even consider playing it
 * OSC / HTTP API for controlling playback / running a playback server / writing custom frontends
 
 ## Building
 
-You need Go 1.12+ or vgo for Go Modules support. You also need a C compiler that works with CGO and gstreamer-1.0-devel.
+You need Go 1.12+ or vgo for Go Modules support.
 
 See [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) for a rough idea of what to install.
 

@@ -18,7 +18,7 @@ var clientCmd = &cobra.Command{
 	Example: "mousiki audiotest client http://localhost:5000/stream",
 	Args:    cobra.ExactArgs(1),
 	RunE: func(_ *cobra.Command, args []string) error {
-		player, err := audio.NewGstreamerPipeline()
+		player, err := audio.NewBeepFFmpegPipeline()
 		if err != nil {
 			return err
 		}

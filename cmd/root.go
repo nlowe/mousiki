@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -38,6 +39,11 @@ var RootCmd = &cobra.Command{
 			fmt.Print("Password: ")
 			raw, _ := terminal.ReadPassword(int(os.Stdin.Fd()))
 			pw = string(raw)
+
+			if len(pw) < 8 {
+				return fmt.Errorf("got bad password: %s (hex: %s)", pw, hex.EncodeToString(raw))
+			}
+
 			fmt.Println()
 		}
 
@@ -45,11 +51,11 @@ var RootCmd = &cobra.Command{
 			logrus.Fatal("No password provided")
 		}
 
-		if err := p.Login(un, pw); err != nil {
+		if err := p.LegacyLogin(un, pw); err != nil {
 			return err
 		}
 
-		player, err := audio.NewGstreamerPipeline()
+		player, err := audio.NewBeepFFmpegPipeline()
 		if err != nil {
 			return err
 		}
@@ -73,7 +79,7 @@ func MarkFlagRequired(cmd *cobra.Command, name string) {
 }
 
 func init() {
-	RootCmd.AddCommand(audiotest.RootCmd)
+	RootCmd.AddCommand(audiotest.RootCmd, tokenTestCmd)
 
 	logrus.SetOutput(colorable.NewColorableStdout())
 	logrus.SetFormatter(&prefixed.TextFormatter{

@@ -1,11 +1,12 @@
 module github.com/nlowe/mousiki
 
-go 1.14
+go 1.16
 
 require (
 	github.com/andrewstuart/limio v0.0.0-20180925070603-17c081b6f2f5
 	github.com/cheggaaa/pb/v3 v3.0.4
 	github.com/eiannone/keyboard v0.0.0-20200508000154-caf4b762e807
+	github.com/faiface/beep v1.0.2
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gdamore/tcell v1.3.0
 	github.com/google/uuid v1.1.1
@@ -15,7 +16,6 @@ require (
 	github.com/mattn/go-colorable v0.1.6
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/mapstructure v1.2.2 // indirect
-	github.com/notedit/gst v0.0.7
 	github.com/onsi/ginkgo v1.12.0 // indirect
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/pelletier/go-toml v1.7.0 // indirect
@@ -29,6 +29,7 @@ require (
 	github.com/stretchr/testify v1.5.1
 	github.com/x-cray/logrus-prefixed-formatter v0.5.2
 	gitlab.com/tslocum/cview v1.4.7-0.20200524163617-eafc5b33a249
+	go.uber.org/multierr v1.6.0
 	golang.org/x/crypto v0.0.0-20200406173513-056763e48d71
 	golang.org/x/sys v0.0.0-20200824131525-c12d262b63d8 // indirect
 	gopkg.in/ini.v1 v1.55.0 // indirect
