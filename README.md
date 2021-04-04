@@ -54,7 +54,7 @@ Maybe some day:
 
 ## Building
 
-You need Go 1.12+ or vgo for Go Modules support.
+You need Go 1.16+.
 
 See [`.github/workflows/ci.yaml`](.github/workflows/ci.yaml) for a rough idea of what to install.
 
