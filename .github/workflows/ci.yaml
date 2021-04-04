@@ -13,6 +13,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@master
 
+      - name: Install Dev Dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && DEBIAN_FRONTEND=noninteractive sudo apt-get install -yq libasound2-dev
+
       - name: Set up Go
         uses: actions/setup-go@v1
         with:
