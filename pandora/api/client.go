@@ -31,6 +31,7 @@ type Client interface {
 	AddFeedback(trackToken string, isPositive bool) error
 	AddTired(trackToken string) error
 	GetNarrative(stationId, musicId string) (pandora.Narrative, error)
+	ListFeedback() <-chan pandora.Feedback
 }
 
 type client struct {
@@ -293,6 +294,62 @@ func (c *client) GetNarrative(stationId, musicId string) (pandora.Narrative, err
 
 	var payload pandora.Narrative
 	return payload, json.NewDecoder(resp.Body).Decode(&payload)
+}
+
+func (c *client) ListFeedback() <-chan pandora.Feedback {
+	results := make(chan pandora.Feedback)
+
+	go func() {
+		defer close(results)
+
+		const pageSize = 10
+		written := 0
+
+		for {
+			err := func() error {
+				c.log.WithField("startIndex", written).Debug("Fetching Feedback")
+				resp, err := c.post("/v1/station/getFeedback", &GetFeedbackRequest{
+					PageSize:   pageSize,
+					StartIndex: written,
+				})
+
+				if err != nil {
+					return err
+				}
+
+				defer mustClose(resp.Body)
+				if err := checkHttpCode(resp); err != nil {
+					return err
+				}
+
+				payload := GetFeedbackResponse{}
+				if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+					return err
+				}
+
+				for _, f := range payload.Feedback {
+					results <- f
+					written++
+				}
+
+				if written >= payload.Total {
+					return io.EOF
+				}
+
+				return nil
+			}()
+
+			if err != nil {
+				if err != io.EOF {
+					c.log.WithError(err).Error("Failed to list feedback")
+				}
+
+				return
+			}
+		}
+	}()
+
+	return results
 }
 
 func checkHttpCode(r *http.Response) error {

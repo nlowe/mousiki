@@ -79,7 +79,7 @@ func MarkFlagRequired(cmd *cobra.Command, name string) {
 }
 
 func init() {
-	RootCmd.AddCommand(audiotest.RootCmd, tokenTestCmd)
+	RootCmd.AddCommand(audiotest.RootCmd, tokenTestCmd, dumpFeedbackCmd)
 
 	logrus.SetOutput(colorable.NewColorableStdout())
 	logrus.SetFormatter(&prefixed.TextFormatter{

@@ -107,6 +107,22 @@ func (_m *Client) GetStations() ([]pandora.Station, error) {
 	return r0, r1
 }
 
+// ListFeedback provides a mock function with given fields:
+func (_m *Client) ListFeedback() <-chan pandora.Feedback {
+	ret := _m.Called()
+
+	var r0 <-chan pandora.Feedback
+	if rf, ok := ret.Get(0).(func() <-chan pandora.Feedback); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(<-chan pandora.Feedback)
+		}
+	}
+
+	return r0
+}
+
 // Login provides a mock function with given fields: username, password
 func (_m *Client) Login(username string, password string) error {
 	ret := _m.Called(username, password)
