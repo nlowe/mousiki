@@ -2,6 +2,10 @@ package pandora
 
 import "time"
 
+var FeedbackCSVHeaders = []string{
+	"id", "createdOn", "album", "artist", "song", "station", "positive", "musicID", "pandoraID", "stationID",
+}
+
 type Feedback struct {
 	ID string `json:"feedbackId"`
 
@@ -17,4 +21,24 @@ type Feedback struct {
 	MusicID   string `json:"musicId"`
 	PandoraID string `json:"pandoraId"`
 	StationID string `json:"stationId"`
+}
+
+func (f Feedback) MarshalCSV() []string {
+	positive := "false"
+	if f.IsPositive {
+		positive = "true"
+	}
+
+	return []string{
+		f.ID,
+		f.CreatedOn.Format(time.RFC3339),
+		f.AlbumTitle,
+		f.ArtistName,
+		f.SongTitle,
+		f.StationName,
+		positive,
+		f.MusicID,
+		f.PandoraID,
+		f.StationID,
+	}
 }

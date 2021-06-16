@@ -5,10 +5,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/mattn/go-colorable"
-
+	"github.com/nlowe/mousiki/pandora"
 	"github.com/nlowe/mousiki/pandora/api"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -51,23 +50,14 @@ var dumpFeedbackCmd = &cobra.Command{
 		w := csv.NewWriter(os.Stdout)
 		defer w.Flush()
 
-		if err := w.Write([]string{
-			"id", "createdOn", "album", "artist", "song", "station", "positive", "musicID", "pandoraID", "stationID",
-		}); err != nil {
+		if err := w.Write(pandora.FeedbackCSVHeaders); err != nil {
 			return err
 		}
 
 		logrus.Info("Fetching Feedback...")
 		i := 1
 		for f := range p.ListFeedback() {
-			positive := "false"
-			if f.IsPositive {
-				positive = "true"
-			}
-
-			if err := w.Write([]string{
-				f.ID, f.CreatedOn.Format(time.RFC3339), f.AlbumTitle, f.ArtistName, f.SongTitle, f.StationName, positive, f.MusicID, f.PandoraID, f.StationID,
-			}); err != nil {
+			if err := w.Write(f.MarshalCSV()); err != nil {
 				return err
 			}
 
